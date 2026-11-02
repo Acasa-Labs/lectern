@@ -1,6 +1,6 @@
 # Third-party notices
 
-Folio includes the following open-source software. Each one is used under the license reproduced below.
+Lectern includes the following open-source software. Each one is used under the license reproduced below.
 
 | Component | Used for | License |
 | --- | --- | --- |

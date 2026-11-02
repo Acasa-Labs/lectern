@@ -27,7 +27,7 @@ final class TerminalController: NSObject, LocalProcessTerminalViewDelegate {
         var environment = ProcessInfo.processInfo.environment
         environment["TERM"] = "xterm-256color"
         environment["COLORTERM"] = "truecolor"
-        environment["TERM_PROGRAM"] = "Folio"
+        environment["TERM_PROGRAM"] = "Lectern"
         environment["LANG"] = environment["LANG"] ?? "en_US.UTF-8"
         let directory = directory?.path ?? FileManager.default.homeDirectoryForCurrentUser.path
         // Through your login shell, so ssh sees your PATH (ProxyCommand tools) and agent.

@@ -1,4 +1,4 @@
-# Releasing Folio
+# Releasing Lectern
 
 Releases are signed with a Developer ID certificate and notarized by Apple, so they open on any Mac without warnings.
 
@@ -13,7 +13,7 @@ Releases are signed with a Developer ID certificate and notarized by Apple, so t
 2. **Notarization credentials.** Create an app-specific password at [account.apple.com](https://account.apple.com), then save it to your keychain:
 
    ```sh
-   xcrun notarytool store-credentials folio-notary --apple-id you@example.com --team-id TEAMID
+   xcrun notarytool store-credentials lectern-notary --apple-id you@example.com --team-id TEAMID
    ```
 
 ## Release from your Mac
@@ -25,12 +25,12 @@ Releases are signed with a Developer ID certificate and notarized by Apple, so t
    scripts/release.sh 1.0.0
    ```
 
-   This writes `dist/Folio-1.0.0.dmg` and `dist/Folio-1.0.0.dmg.sha256`. The build number is the commit count. To check signing without waiting for Apple, run `SKIP_NOTARIZE=1 scripts/release.sh 1.0.0`.
+   This writes `dist/Lectern-1.0.0.dmg` and `dist/Lectern-1.0.0.dmg.sha256`. The build number is the commit count. To check signing without waiting for Apple, run `SKIP_NOTARIZE=1 scripts/release.sh 1.0.0`.
 3. Tag the commit, push the tag, and publish the release with both files:
 
    ```sh
    git tag v1.0.0 && git push origin v1.0.0
-   gh release create v1.0.0 dist/Folio-1.0.0.dmg dist/Folio-1.0.0.dmg.sha256 --title "Folio 1.0.0" --notes-file -
+   gh release create v1.0.0 dist/Lectern-1.0.0.dmg dist/Lectern-1.0.0.dmg.sha256 --title "Lectern 1.0.0" --notes-file -
    ```
 
 ## Release from GitHub Actions

@@ -197,7 +197,7 @@ final class Workspace: ObservableObject {
     private var navigatingHistory = false
 
     var selectedTab: EditorTab? { tabs.first { $0.id == selectedTabID } }
-    var title: String { root?.name ?? selectedTab?.title ?? "Folio" }
+    var title: String { root?.name ?? selectedTab?.title ?? "Lectern" }
     var isEmpty: Bool { root == nil && tabs.allSatisfy { $0.url == nil && !$0.isDirty } }
     /// The open folder's repository (Flowboard's git reader), if the folder is in one.
     @Published private(set) var git: GitViewModel?
@@ -405,7 +405,7 @@ final class Workspace: ObservableObject {
         tab.customTitle = target.title
     }
 
-    /// Opens the folder in your own terminal app (iTerm or Terminal), outside Folio.
+    /// Opens the folder in your own terminal app (iTerm or Terminal), outside Lectern.
     func openInTerminal() {
         ExternalTerminal.open(terminalFolder)
     }

@@ -49,8 +49,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          gh release create "$GITHUB_REF_NAME" --draft --title "Folio $VERSION" --generate-notes \
-            "dist/Folio-$VERSION.dmg" "dist/Folio-$VERSION.dmg.sha256"
+          gh release create "$GITHUB_REF_NAME" --draft --title "Lectern $VERSION" --generate-notes \
+            "dist/Lectern-$VERSION.dmg" "dist/Lectern-$VERSION.dmg.sha256"
 
       - name: Remove the signing keychain
         if: always()

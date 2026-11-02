@@ -10,7 +10,7 @@ enum GitSidebarItem: Hashable {
 }
 
 /// Read-only browser for the open folder's repository: refs, history graph, commits, diffs and
-/// the working tree. Shown in Folio's Source Control tab.
+/// the working tree. Shown in Lectern's Source Control tab.
 struct GitView: View {
     let model: GitViewModel
     var search: String = ""

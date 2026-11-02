@@ -55,7 +55,7 @@ final class GitViewModel {
     private(set) var isRefreshing = false
     private(set) var lastLoaded: Date?
 
-    /// Each changed file's status by absolute path, for the letters in Folio's file tree.
+    /// Each changed file's status by absolute path, for the letters in Lectern's file tree.
     private(set) var fileStatus: [String: GitFileChange.Kind] = [:]
 
     @ObservationIgnored private var repository: GitRepository?
@@ -66,7 +66,7 @@ final class GitViewModel {
         self.path = path
     }
 
-    /// Folio isn't sandboxed, so it reads the folder directly.
+    /// Lectern isn't sandboxed, so it reads the folder directly.
     func start() async {
         phase = .loading
         await open()

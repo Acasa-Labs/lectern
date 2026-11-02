@@ -1,4 +1,4 @@
-// Draws the 1024px Folio icon: two stacked pages with colour-coded lines on a dark squircle.
+// Draws the 1024px Lectern icon: two stacked pages with colour-coded lines on a dark squircle.
 // Usage: swift Icon/make_icon.swift <out.png>
 import AppKit
 

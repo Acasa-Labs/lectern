@@ -2,10 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleName</key><string>Folio</string>
-	<key>CFBundleDisplayName</key><string>Folio</string>
-	<key>CFBundleIdentifier</key><string>com.acasalabs.folio</string>
-	<key>CFBundleExecutable</key><string>Folio</string>
+	<key>CFBundleName</key><string>Lectern</string>
+	<key>CFBundleDisplayName</key><string>Lectern</string>
+	<key>CFBundleIdentifier</key><string>com.acasalabs.lectern</string>
+	<key>CFBundleExecutable</key><string>Lectern</string>
 	<key>CFBundleIconFile</key><string>AppIcon</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
 	<key>CFBundleShortVersionString</key><string>1.0</string>
@@ -15,15 +15,15 @@
 	<key>NSHighResolutionCapable</key><true/>
 	<key>NSPrincipalClass</key><string>NSApplication</string>
 	<key>NSHumanReadableCopyright</key><string>© 2026 Acasa Labs. MIT License.</string>
-	<key>NSAppleEventsUsageDescription</key><string>A command in a Folio terminal tab wants to control another app.</string>
-	<key>NSMicrophoneUsageDescription</key><string>A command in a Folio terminal tab wants to use the microphone.</string>
-	<key>NSCameraUsageDescription</key><string>A command in a Folio terminal tab wants to use the camera.</string>
-	<key>NSDesktopFolderUsageDescription</key><string>Folio opens and edits the files and folders you choose.</string>
-	<key>NSDocumentsFolderUsageDescription</key><string>Folio opens and edits the files and folders you choose.</string>
-	<key>NSDownloadsFolderUsageDescription</key><string>Folio opens and edits the files and folders you choose.</string>
-	<key>NSRemovableVolumesUsageDescription</key><string>Folio opens and edits the files and folders you choose.</string>
-	<key>NSNetworkVolumesUsageDescription</key><string>Folio opens and edits the files and folders you choose.</string>
-	<key>NSLocalNetworkUsageDescription</key><string>Folio's terminal and SSH tabs connect to devices and servers on your local network.</string>
+	<key>NSAppleEventsUsageDescription</key><string>A command in a Lectern terminal tab wants to control another app.</string>
+	<key>NSMicrophoneUsageDescription</key><string>A command in a Lectern terminal tab wants to use the microphone.</string>
+	<key>NSCameraUsageDescription</key><string>A command in a Lectern terminal tab wants to use the camera.</string>
+	<key>NSDesktopFolderUsageDescription</key><string>Lectern opens and edits the files and folders you choose.</string>
+	<key>NSDocumentsFolderUsageDescription</key><string>Lectern opens and edits the files and folders you choose.</string>
+	<key>NSDownloadsFolderUsageDescription</key><string>Lectern opens and edits the files and folders you choose.</string>
+	<key>NSRemovableVolumesUsageDescription</key><string>Lectern opens and edits the files and folders you choose.</string>
+	<key>NSNetworkVolumesUsageDescription</key><string>Lectern opens and edits the files and folders you choose.</string>
+	<key>NSLocalNetworkUsageDescription</key><string>Lectern's terminal and SSH tabs connect to devices and servers on your local network.</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

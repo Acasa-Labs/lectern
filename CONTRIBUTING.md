@@ -1,6 +1,6 @@
-# Contributing to Folio
+# Contributing to Lectern
 
-Thanks for helping. Folio aims to be a small, fast, native Mac editor, so a change is most welcome when it makes everyday editing better without adding settings or clutter.
+Thanks for helping. Lectern aims to be a small, fast, native Mac editor, so a change is most welcome when it makes everyday editing better without adding settings or clutter.
 
 ## Before you start
 
@@ -12,7 +12,7 @@ Thanks for helping. Folio aims to be a small, fast, native Mac editor, so a chan
 You need Xcode 16 or later and macOS 15 or later.
 
 ```sh
-./build.sh       # builds and installs /Applications/Folio.app (signed ad hoc)
+./build.sh       # builds and installs /Applications/Lectern.app (signed ad hoc)
 swift build      # just compiles
 ```
 
@@ -24,7 +24,7 @@ Open `Package.swift` in Xcode if you want to work in Xcode. The `sample/` folder
 - The editor is a TextKit 1 `NSTextView` (`CodeEditor.swift`). Syntax colours come from `SyntaxHighlighter.swift`.
 - `Git/` is the source control code. It reads repositories directly, and makes changes by running the user's own `git`.
 - Match the style of the code around your change: names, comment density, and short comments that say *why*.
-- Folio doesn't send anything over the network on its own. Please keep it that way.
+- Lectern doesn't send anything over the network on its own. Please keep it that way.
 
 ## Pull requests
 

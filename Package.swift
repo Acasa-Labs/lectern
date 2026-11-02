@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "Folio",
+    name: "Lectern",
     platforms: [.macOS(.v15)],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.5.0"),
@@ -10,7 +10,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "Folio",
+            name: "Lectern",
             dependencies: [
                 .product(name: "Markdown", package: "swift-markdown"),
                 .product(name: "SwiftTerm", package: "SwiftTerm"),

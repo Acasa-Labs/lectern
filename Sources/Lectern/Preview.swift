@@ -47,7 +47,7 @@ final class PreviewController: NSObject, WKNavigationDelegate {
     private var mermaidLoaded = false
     private var pendingUpdate: DispatchWorkItem?
     private let pageURL = FileManager.default.temporaryDirectory
-        .appendingPathComponent("Folio-\(UUID().uuidString).html")
+        .appendingPathComponent("Lectern-\(UUID().uuidString).html")
 
     override init() {
         let config = WKWebViewConfiguration()

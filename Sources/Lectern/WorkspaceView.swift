@@ -766,7 +766,7 @@ private struct BinaryFileView: View {
         } else {
             VStack(spacing: 12) {
                 Image(systemName: "doc.questionmark").font(.system(size: 40)).foregroundStyle(.secondary)
-                Text("This file isn't text, so Folio can't show it.")
+                Text("This file isn't text, so Lectern can't show it.")
                     .foregroundStyle(.secondary)
                 if let url {
                     Button("Open in Default App") { NSWorkspace.shared.open(url) }
@@ -787,7 +787,7 @@ private struct WelcomeView: View {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
                     .frame(width: 96, height: 96)
-                Text("Folio").font(.largeTitle.weight(.semibold))
+                Text("Lectern").font(.largeTitle.weight(.semibold))
                 VStack(alignment: .leading, spacing: 8) {
                     shortcut("New File", "⌘N") { AppDelegate.shared.newFile(nil) }
                     shortcut("Open…", "⌘O") { AppDelegate.shared.openDocument(nil) }

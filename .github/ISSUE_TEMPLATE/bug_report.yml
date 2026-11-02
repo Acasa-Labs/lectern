@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in Folio doesn't work as it should.
+description: Something in Lectern doesn't work as it should.
 labels: [bug]
 body:
   - type: textarea
@@ -12,8 +12,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Folio version
-      description: Folio → About Folio
+      label: Lectern version
+      description: Lectern → About Lectern
     validations:
       required: true
   - type: input

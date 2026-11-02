@@ -1,12 +1,12 @@
 name: Feature idea
-description: Suggest something Folio could do.
+description: Suggest something Lectern could do.
 labels: [enhancement]
 body:
   - type: textarea
     id: problem
     attributes:
       label: What are you trying to do?
-      description: The task or annoyance, not just the feature. Folio aims to stay small, so this helps decide what fits.
+      description: The task or annoyance, not just the feature. Lectern aims to stay small, so this helps decide what fits.
     validations:
       required: true
   - type: textarea

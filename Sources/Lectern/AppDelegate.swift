@@ -259,16 +259,16 @@ enum MainMenu {
 
         let main = NSMenu()
         [
-            menu("Folio", [
-                item("About Folio", #selector(NSApplication.orderFrontStandardAboutPanel(_:)), toApp: false),
+            menu("Lectern", [
+                item("About Lectern", #selector(NSApplication.orderFrontStandardAboutPanel(_:)), toApp: false),
                 .separator(),
                 servicesItem,
                 .separator(),
-                item("Hide Folio", #selector(NSApplication.hide(_:)), "h", toApp: false),
+                item("Hide Lectern", #selector(NSApplication.hide(_:)), "h", toApp: false),
                 item("Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option], toApp: false),
                 item("Show All", #selector(NSApplication.unhideAllApplications(_:)), toApp: false),
                 .separator(),
-                item("Quit Folio", #selector(NSApplication.terminate(_:)), "q", toApp: false),
+                item("Quit Lectern", #selector(NSApplication.terminate(_:)), "q", toApp: false),
             ]),
             menu("File", [
                 item("New File", #selector(AppDelegate.newFile(_:)), "n"),

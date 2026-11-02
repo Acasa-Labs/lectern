@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+	Folio runs with the hardened runtime and outside the App Sandbox: its terminal tabs start your shell,
+	and it runs your own git and ssh. macOS treats programs started in a terminal tab as Folio when they
+	ask for the microphone, camera or to control other apps (osascript), so Folio has to be allowed to
+	ask for them. Each still needs your OK in a system prompt.
+-->
+<dict>
+	<key>com.apple.security.automation.apple-events</key><true/>
+	<key>com.apple.security.device.audio-input</key><true/>
+	<key>com.apple.security.device.camera</key><true/>
+</dict>
+</plist>

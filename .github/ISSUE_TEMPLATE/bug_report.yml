@@ -1,0 +1,30 @@
+name: Bug report
+description: Something in Folio doesn't work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead. Screenshots help.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Folio version
+      description: Folio → About Folio
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac
+      placeholder: macOS 15.4, MacBook Pro (M3)
+    validations:
+      required: true
+  - type: textarea
+    id: file
+    attributes:
+      label: A file that shows the problem
+      description: If it's about one file type, a small sample (with nothing private in it) makes it much quicker to fix.

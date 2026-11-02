@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (Apple silicon and Intel)
+        run: swift build -c release --arch arm64 --arch x86_64
+      - name: Assemble the app
+        run: |
+          BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
+          APP="$(scripts/assemble.sh "$BIN/Folio" "$RUNNER_TEMP")"
+          codesign --force --sign - --entitlements Folio.entitlements "$APP"
+          codesign --verify --strict "$APP"

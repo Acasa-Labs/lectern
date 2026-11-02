@@ -67,11 +67,14 @@ final class EditorTab: ObservableObject, Identifiable {
     private var previewController: PreviewController?
 
     var isDirty: Bool { text != savedText }
-    var title: String { url?.lastPathComponent ?? "Untitled" }
+    /// The Source Control tab shows the repository instead of a file.
+    let isSourceControl: Bool
+    var title: String { isSourceControl ? "Source Control" : url?.lastPathComponent ?? "Untitled" }
     var kind: DocumentKind { DocumentKind(fileURL: url) }
 
-    init(url: URL?) {
+    init(url: URL?, isSourceControl: Bool = false) {
         self.url = url
+        self.isSourceControl = isSourceControl
         var contents = ""
         if let url, let data = try? Data(contentsOf: url) {
             isBinary = data.prefix(8000).contains(0)
@@ -154,6 +157,8 @@ final class Workspace: ObservableObject {
     var selectedTab: EditorTab? { tabs.first { $0.id == selectedTabID } }
     var title: String { root?.name ?? selectedTab?.title ?? "Folio" }
     var isEmpty: Bool { root == nil && tabs.allSatisfy { $0.url == nil && !$0.isDirty } }
+    /// The open folder's repository (Flowboard's git reader), if the folder is in one.
+    @Published private(set) var git: GitViewModel?
 
     init(root: URL? = nil) {
         if let root { setRoot(root) }
@@ -164,6 +169,12 @@ final class Workspace: ObservableObject {
         fileIndex = nil
         columnVisibility = .all
         RecentStore.shared.addFolder(url)
+        // Workspaces are only ever touched from the main thread (UI and menu actions).
+        git = MainActor.assumeIsolated {
+            let git = GitViewModel(path: url.path)
+            Task { await git.start() }
+            return git
+        }
     }
 
     func contains(_ url: URL) -> Bool {
@@ -219,7 +230,7 @@ final class Workspace: ObservableObject {
         }
         let tab = makeTab(url: url)
         // A blank, untouched Untitled tab gives way to the first real file.
-        if tabs.count == 1, let only = tabs.first, only.url == nil, only.text.isEmpty {
+        if tabs.count == 1, let only = tabs.first, only.url == nil, !only.isSourceControl, only.text.isEmpty {
             tabs = [tab]
         } else if let index = tabs.firstIndex(where: { $0.id == selectedTabID }) {
             tabs.insert(tab, at: index + 1)
@@ -237,12 +248,14 @@ final class Workspace: ObservableObject {
 
     private func makeTab(url: URL?) -> EditorTab {
         let tab = EditorTab(url: url)
+        // Links to files open here; folders and app bundles are only shown in Finder, never launched.
         tab.onOpenLink = { [weak self] link in
             var isDirectory: ObjCBool = false
-            if FileManager.default.fileExists(atPath: link.path, isDirectory: &isDirectory), !isDirectory.boolValue {
-                self?.open(link)
+            guard FileManager.default.fileExists(atPath: link.path, isDirectory: &isDirectory) else { return }
+            if isDirectory.boolValue {
+                NSWorkspace.shared.activateFileViewerSelecting([link])
             } else {
-                NSWorkspace.shared.open(link)
+                self?.open(link)
             }
         }
         return tab
@@ -268,6 +281,19 @@ final class Workspace: ObservableObject {
         guard !tabs.isEmpty else { return }
         let index = tabs.firstIndex { $0.id == selectedTabID } ?? 0
         selectedTabID = tabs[(index + offset + tabs.count) % tabs.count].id
+    }
+
+    // MARK: Source Control
+
+    /// Opens (or switches to) the Source Control tab.
+    func showSourceControl() {
+        if let tab = tabs.first(where: \.isSourceControl) {
+            selectedTabID = tab.id
+            return
+        }
+        let tab = EditorTab(url: nil, isSourceControl: true)
+        tabs.append(tab)
+        selectedTabID = tab.id
     }
 
     // MARK: Find in Folder

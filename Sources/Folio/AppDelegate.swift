@@ -95,6 +95,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         (workspace ?? WorkspaceWindowController.newWindow().workspace).showFindInFolder()
     }
 
+    @objc func showSourceControl(_ sender: Any?) {
+        workspace?.showSourceControl()
+    }
+
     @objc func toggleFileSidebar(_ sender: Any?) {
         guard let workspace else { return }
         workspace.columnVisibility = workspace.columnVisibility == .detailOnly ? .all : .detailOnly
@@ -141,6 +145,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return workspace?.canGoForward == true
         case #selector(nextTab(_:)), #selector(previousTab(_:)):
             return (workspace?.tabs.count ?? 0) > 1
+        case #selector(showSourceControl(_:)):
+            return workspace?.git?.isRepository == true
         case #selector(quickOpen(_:)), #selector(toggleFileSidebar(_:)):
             return workspace != nil
         default:
@@ -233,6 +239,7 @@ enum MainMenu {
             ]),
             menu("View", [
                 item("Toggle Sidebar", #selector(AppDelegate.toggleFileSidebar(_:)), "b"),
+                item("Source Control", #selector(AppDelegate.showSourceControl(_:)), "g", [.command, .option]),
                 item("Show Preview", #selector(AppDelegate.toggleEditing(_:)), "e"),
                 item("Word Wrap", #selector(AppDelegate.toggleWordWrap(_:)), "z", .option),
                 .separator(),

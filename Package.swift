@@ -1,9 +1,9 @@
-// swift-tools-version:5.9
+// swift-tools-version:6.0
 import PackageDescription
 
 let package = Package(
     name: "Folio",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v15)],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.5.0"),
     ],
@@ -12,5 +12,6 @@ let package = Package(
             name: "Folio",
             dependencies: [.product(name: "Markdown", package: "swift-markdown")]
         ),
-    ]
+    ],
+    swiftLanguageModes: [.v5]
 )

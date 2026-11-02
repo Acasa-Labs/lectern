@@ -16,9 +16,12 @@ struct WorkspaceView: View {
                     Divider()
                 }
                 if let tab = workspace.selectedTab {
-                    JumpBar(workspace: workspace, tab: tab)
-                    Divider()
-                    TabContentView(tab: tab).id(tab.id)
+                    if !tab.isSourceControl {
+                        JumpBar(workspace: workspace, tab: tab)
+                        Divider()
+                    }
+                    TabContentView(tab: tab, git: workspace.git, showSourceControl: workspace.showSourceControl)
+                        .id(tab.id)
                 } else {
                     WelcomeView()
                 }
@@ -55,6 +58,12 @@ struct WorkspaceView: View {
                     .help("Go forward (⌃⌘→)")
             }
             ToolbarItemGroup(placement: .primaryAction) {
+                if workspace.git?.isRepository == true {
+                    Button(action: workspace.showSourceControl) {
+                        Label("Source Control", systemImage: "arrow.triangle.branch")
+                    }
+                    .help("Source Control (⌥⌘G)")
+                }
                 Button {
                     workspace.showQuickOpen.toggle()
                 } label: {
@@ -238,14 +247,35 @@ private struct FileTreeRows: View {
     }
 
     private func row(_ node: FileNode) -> some View {
-        Label {
-            Text(node.name)
-        } icon: {
-            FileIcon(url: node.url, isDirectory: node.isDirectory)
+        let path = node.url.standardizedFileURL.path
+        return HStack(spacing: 4) {
+            Label {
+                Text(node.name)
+            } icon: {
+                FileIcon(url: node.url, isDirectory: node.isDirectory)
+            }
+            Spacer(minLength: 4)
+            // Xcode-style source control letter: M, A, D, ?, U…
+            if let kind = workspace.git?.fileStatus[path] {
+                Text(kind.letter)
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Self.color(for: kind))
+                    .help(kind.title)
+            }
         }
         .lineLimit(1)
-        .tag(node.url.standardizedFileURL.path)
-        .id(node.url.standardizedFileURL.path)
+        .tag(path)
+        .id(path)
+    }
+
+    private static func color(for kind: GitFileChange.Kind) -> Color {
+        switch kind {
+        case .added: .green
+        case .modified, .typeChanged: .orange
+        case .deleted, .conflicted: .red
+        case .renamed: .blue
+        case .untracked: .secondary
+        }
     }
 }
 
@@ -328,7 +358,13 @@ private struct TabButton: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            FileIcon(url: tab.url)
+            Group {
+                if tab.isSourceControl {
+                    Image(systemName: "arrow.triangle.branch").foregroundStyle(.secondary)
+                } else {
+                    FileIcon(url: tab.url)
+                }
+            }
                 .imageScale(.small)
             Text(tab.title)
                 .lineLimit(1)
@@ -376,10 +412,19 @@ private struct TabButton: View {
 
 private struct TabContentView: View {
     @ObservedObject var tab: EditorTab
+    let git: GitViewModel?
+    let showSourceControl: () -> Void
     @AppStorage("zoom") private var zoom = 1.0
 
     var body: some View {
-        if tab.isBinary {
+        if tab.isSourceControl {
+            if let git {
+                GitView(model: git)
+            } else {
+                ContentUnavailableView("No Folder Open", systemImage: "arrow.triangle.branch",
+                                       description: Text("Open a folder in a git repository to see its history."))
+            }
+        } else if tab.isBinary {
             BinaryFileView(url: tab.url)
         } else {
             // Every file opens in the editor; ⌘E swaps it for the preview and back.
@@ -389,7 +434,7 @@ private struct TabContentView: View {
                 VStack(spacing: 0) {
                     CodeEditorView(tab: tab, fontSize: 13 * zoom)
                     Divider()
-                    StatusBar(cursor: tab.editor.cursor)
+                    StatusBar(cursor: tab.editor.cursor, branch: git?.branchName, showSourceControl: showSourceControl)
                 }
             }
         }
@@ -399,9 +444,19 @@ private struct TabContentView: View {
 /// Xcode's bottom bar: the cursor's line and column.
 private struct StatusBar: View {
     @ObservedObject var cursor: CursorPosition
+    let branch: String?
+    let showSourceControl: () -> Void
 
     var body: some View {
         HStack {
+            // The current branch, as in Xcode's toolbar; click it for Source Control.
+            if let branch {
+                Button(action: showSourceControl) {
+                    Label(branch, systemImage: "arrow.triangle.branch")
+                }
+                .buttonStyle(.plain)
+                .help("Show Source Control")
+            }
             Spacer()
             Text(verbatim: "Line: \(cursor.line)  Col: \(cursor.column)")
                 .monospacedDigit()

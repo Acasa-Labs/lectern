@@ -1,0 +1,25 @@
+# Deployment config
+version: 2.1
+name: "markdown-reader"
+enabled: true
+replicas: 3
+ratio: 0.75
+empty: null
+url: https://example.com:8080/path  # colon inside value
+defaults: &defaults
+  timeout: 30
+  retries: ~
+service:
+  <<: *defaults
+  tags: [web, api]
+  env:
+    - name: PORT
+      value: "8080"
+    - name: MODE
+      value: production
+script: |
+  echo "hello: world"
+  # not a comment, part of the block
+done: yes
+---
+second: doc

@@ -1,0 +1,15 @@
+{
+  "name": "Markdown Reader",
+  "version": 1.10,
+  "big": 12345678901234567890,
+  "released": true,
+  "license": null,
+  "tags": ["viewer", "markdown", "json"],
+  "escaped": "line\nbreak \"quoted\" <b>not bold</b>",
+  "empty": {},
+  "nested": {
+    "zebra": 1,
+    "apple": [1, 2, {"deep": [true, false, null]}],
+    "emptyList": []
+  }
+}

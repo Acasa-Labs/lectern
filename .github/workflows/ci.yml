@@ -11,10 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build (Apple silicon and Intel)
-        run: swift build -c release --arch arm64 --arch x86_64
+        run: |
+          BINARY="$(scripts/build-universal.sh)"
+          echo "BINARY=$BINARY" >> "$GITHUB_ENV"
       - name: Assemble the app
         run: |
-          BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
-          APP="$(scripts/assemble.sh "$BIN/Lectern" "$RUNNER_TEMP")"
+          APP="$(scripts/assemble.sh "$BINARY" "$RUNNER_TEMP")"
           codesign --force --sign - --entitlements Lectern.entitlements "$APP"
           codesign --verify --strict "$APP"

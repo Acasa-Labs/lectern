@@ -25,9 +25,7 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 echo "==> Building Lectern $VERSION ($BUILD) for Apple silicon and Intel"
-swift build -c release --arch arm64 --arch x86_64
-# The output folder differs between toolchains, so ask for it.
-BINARY="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/Lectern"
+BINARY="$(scripts/build-universal.sh)"
 
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT

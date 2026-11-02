@@ -115,6 +115,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private var wordWrap: Bool { UserDefaults.standard.object(forKey: "wordWrap") as? Bool ?? true }
 
+    @objc func toggleMinimap(_ sender: Any?) {
+        UserDefaults.standard.set(!showsMinimap, forKey: "showMinimap")
+    }
+
+    private var showsMinimap: Bool { UserDefaults.standard.object(forKey: "showMinimap") as? Bool ?? true }
+
     @objc func goBack(_ sender: Any?) { workspace?.goBack() }
     @objc func goForward(_ sender: Any?) { workspace?.goForward() }
 
@@ -138,6 +144,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return tab?.kind.hasPreview == true && tab?.isBinary == false
         case #selector(toggleWordWrap(_:)):
             item.state = wordWrap ? .on : .off
+            return true
+        case #selector(toggleMinimap(_:)):
+            item.state = showsMinimap ? .on : .off
             return true
         case #selector(goBack(_:)):
             return workspace?.canGoBack == true
@@ -242,6 +251,7 @@ enum MainMenu {
                 item("Source Control", #selector(AppDelegate.showSourceControl(_:)), "g", [.command, .option]),
                 item("Show Preview", #selector(AppDelegate.toggleEditing(_:)), "e"),
                 item("Word Wrap", #selector(AppDelegate.toggleWordWrap(_:)), "z", .option),
+                item("Minimap", #selector(AppDelegate.toggleMinimap(_:)), "m", [.command, .control, .shift]),
                 .separator(),
                 item("Actual Size", #selector(AppDelegate.actualSize(_:)), "0"),
                 item("Zoom In", #selector(AppDelegate.zoomIn(_:)), "="),

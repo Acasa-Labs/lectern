@@ -3,7 +3,7 @@ import CryptoKit
 import Foundation
 
 /// Reads a git repository straight from its `.git` folder: refs, packfiles, the index and
-/// the work tree. Read-only by design. The app is sandboxed, so it can't run `git` itself.
+/// the work tree. Read-only by design. Taken from Flowboard, which is sandboxed and can't run `git`.
 actor GitRepository {
     enum Failure: LocalizedError {
         case notRepository(String)

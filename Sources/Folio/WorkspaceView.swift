@@ -58,18 +58,6 @@ struct WorkspaceView: View {
                     .help("Go forward (⌃⌘→)")
             }
             ToolbarItemGroup(placement: .primaryAction) {
-                if workspace.git?.isRepository == true {
-                    Button(action: workspace.showSourceControl) {
-                        Label("Source Control", systemImage: "arrow.triangle.branch")
-                    }
-                    .help("Source Control (⌥⌘G)")
-                }
-                Button {
-                    workspace.showQuickOpen.toggle()
-                } label: {
-                    Label("Quick Open", systemImage: "magnifyingglass")
-                }
-                .help("Quick Open (⌘P)")
                 if let tab = workspace.selectedTab, tab.kind.hasPreview, !tab.isBinary {
                     EditToggle(tab: tab)
                 }
@@ -103,6 +91,7 @@ private struct SidebarView: View {
             // Navigator switcher, as at the top of Xcode's sidebar.
             Picker("Navigator", selection: $workspace.sidebarMode) {
                 Image(systemName: "folder").help("Files").tag(SidebarMode.files)
+                Image(systemName: "arrow.triangle.branch").help("Source Control").tag(SidebarMode.sourceControl)
                 Image(systemName: "magnifyingglass").help("Find in Folder (⇧⌘F)").tag(SidebarMode.search)
             }
             .pickerStyle(.segmented)
@@ -111,6 +100,7 @@ private struct SidebarView: View {
             .padding(.vertical, 6)
             switch workspace.sidebarMode {
             case .files: files
+            case .sourceControl: SourceControlNavigator(workspace: workspace)
             case .search: FindNavigator(workspace: workspace, search: workspace.search)
             }
         }
@@ -224,6 +214,89 @@ struct FileIcon: View {
             return ("chevron.left.forwardslash.chevron.right", .secondary)
         }
         return ("doc.text", .secondary)
+    }
+}
+
+/// The sidebar's Source Control tab: the branch and the changed files, like Xcode's navigator.
+/// History opens Flowboard's full viewer as a tab.
+private struct SourceControlNavigator: View {
+    @ObservedObject var workspace: Workspace
+
+    var body: some View {
+        if let git = workspace.git, git.isRepository {
+            VStack(spacing: 0) {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.triangle.branch").foregroundStyle(.secondary)
+                    Text(git.branchName ?? "Detached HEAD").fontWeight(.semibold).lineLimit(1)
+                    Spacer()
+                    Button("History", action: workspace.showSourceControl)
+                        .controlSize(.small)
+                        .help("Open Source Control (⌥⌘G)")
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                Divider()
+                if let status = git.status, !status.isClean {
+                    List {
+                        section("Conflicts", status.conflicted, git: git)
+                        section("Staged", status.staged, git: git)
+                        section("Changes", status.unstaged, git: git)
+                        section("Untracked", status.untracked, git: git)
+                    }
+                    .listStyle(.sidebar)
+                    .environment(\.sidebarRowSize, .small)
+                } else {
+                    ContentUnavailableView("No Changes", systemImage: "checkmark.circle",
+                                           description: Text("The working tree matches the last commit."))
+                }
+            }
+        } else {
+            ContentUnavailableView("No Repository", systemImage: "arrow.triangle.branch",
+                                   description: Text(workspace.root == nil ? "Open a folder to see its changes."
+                                                                          : "This folder isn't in a git repository."))
+        }
+    }
+
+    @ViewBuilder
+    private func section(_ title: String, _ changes: [GitFileChange], git: GitViewModel) -> some View {
+        if !changes.isEmpty {
+            Section("\(title) (\(changes.count))") {
+                ForEach(changes) { change in
+                    Button {
+                        open(change, git: git)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Label {
+                                Text(change.fileName)
+                            } icon: {
+                                FileIcon(url: URL(fileURLWithPath: change.path))
+                            }
+                            Text(change.directory)
+                                .foregroundStyle(.secondary)
+                                .truncationMode(.head)
+                            Spacer(minLength: 4)
+                            Text(change.kind.letter)
+                                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(change.kind == .untracked ? Color.secondary : change.kind == .added ? .green
+                                                 : change.kind == .deleted || change.kind == .conflicted ? .red : .orange)
+                        }
+                        .lineLimit(1)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(change.kind == .deleted ? "\(change.path) was deleted" : change.path)
+                }
+            }
+        }
+    }
+
+    /// Opens the changed file; deleted files have nothing to open, so they show in Source Control.
+    private func open(_ change: GitFileChange, git: GitViewModel) {
+        guard change.kind != .deleted, let workTree = git.snapshot?.workTree else {
+            workspace.showSourceControl()
+            return
+        }
+        workspace.open(URL(fileURLWithPath: workTree).appendingPathComponent(change.path))
     }
 }
 

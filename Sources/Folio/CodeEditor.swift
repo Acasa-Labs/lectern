@@ -64,6 +64,10 @@ final class EditorTextView: NSTextView {
 final class EditorController: NSObject, NSTextViewDelegate {
     let scrollView = NSScrollView()
     let textView: EditorTextView
+    /// The editor and its minimap side by side; this is what the tab shows.
+    let view = NSView()
+    private let minimap: MinimapView
+    private var minimapWidth: NSLayoutConstraint!
     let cursor = CursorPosition()
     private weak var tab: EditorTab?
     private let ruler: LineNumberRuler
@@ -101,7 +105,24 @@ final class EditorController: NSObject, NSTextViewDelegate {
         scrollView.drawsBackground = true
         scrollView.backgroundColor = EditorTheme.background
         ruler = LineNumberRuler(textView: textView)
+        minimap = MinimapView(textView: textView, scrollView: scrollView)
         super.init()
+
+        for subview in [scrollView, minimap] as [NSView] {
+            subview.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(subview)
+        }
+        minimapWidth = minimap.widthAnchor.constraint(equalToConstant: MinimapView.viewWidth)
+        NSLayoutConstraint.activate([
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: minimap.leadingAnchor),
+            minimap.topAnchor.constraint(equalTo: view.topAnchor),
+            minimap.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            minimap.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            minimapWidth,
+        ])
 
         textView.delegate = self
         textView.isRichText = false
@@ -140,6 +161,14 @@ final class EditorController: NSObject, NSTextViewDelegate {
         textView.typingAttributes = [.font: font, .foregroundColor: EditorTheme.text, .paragraphStyle: paragraph]
         ruler.font = NSFont.monospacedDigitSystemFont(ofSize: max(9, size - 2), weight: .regular)
         highlight()
+    }
+
+    func setMinimapVisible(_ visible: Bool) {
+        let width = visible ? MinimapView.viewWidth : 0
+        guard minimapWidth.constant != width else { return }
+        minimapWidth.constant = width
+        minimap.isHidden = !visible
+        if visible { minimap.rebuild() }
     }
 
     /// Wrapped lines fit the editor's width; unwrapped lines scroll sideways.
@@ -289,6 +318,7 @@ final class EditorController: NSObject, NSTextViewDelegate {
             }
         }
         storage.endEditing()
+        if !minimap.isHidden { minimap.scheduleRebuild() }
     }
 
     // MARK: NSTextViewDelegate
@@ -344,16 +374,18 @@ struct CodeEditorView: NSViewRepresentable {
     let tab: EditorTab
     let fontSize: Double
     @AppStorage("wordWrap") private var wordWrap = true
+    @AppStorage("showMinimap") private var showMinimap = true
 
     func makeNSView(context: Context) -> HostedViewContainer {
         let editor = tab.editor
         DispatchQueue.main.async { editor.textView.window?.makeFirstResponder(editor.textView) }
-        return HostedViewContainer(editor.scrollView)
+        return HostedViewContainer(editor.view)
     }
 
     func updateNSView(_ view: HostedViewContainer, context: Context) {
         tab.editor.setFontSize(fontSize)
         tab.editor.setWordWrap(wordWrap)
+        tab.editor.setMinimapVisible(showMinimap)
     }
 }
 

@@ -129,7 +129,7 @@ final class EditorTab: ObservableObject, Identifiable {
 }
 
 enum SidebarMode {
-    case files, search
+    case files, sourceControl, search
 }
 
 /// Everything in one window: the open folder, its tabs, Quick Open and Find in Folder.

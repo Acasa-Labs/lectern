@@ -372,9 +372,9 @@ private struct FileTreeRows: View {
 private struct TabBar: View {
     @ObservedObject var workspace: Workspace
 
-    /// The tabs' fixed widths plus separators, to know when they overflow.
+    /// The tabs' fixed widths plus separators and the + button, to know when they overflow.
     private var tabsWidth: CGFloat {
-        workspace.tabs.reduce(0) { $0 + ($1.isPinned ? TabButton.pinnedWidth : TabButton.width) + 1 }
+        workspace.tabs.reduce(NewTabMenu.width) { $0 + ($1.isPinned ? TabButton.pinnedWidth : TabButton.width) + 1 }
     }
 
     var body: some View {
@@ -391,6 +391,7 @@ private struct TabBar: View {
                                     .fill(.separator)
                                     .frame(width: 1, height: 16)
                             }
+                            NewTabMenu(workspace: workspace)
                         }
                     }
                     // Keep the selected tab in view however it was chosen.
@@ -432,6 +433,52 @@ private struct TabBar: View {
         .fixedSize()
         .padding(.horizontal, 10)
         .help("Show all \(workspace.tabs.count) tabs")
+    }
+}
+
+/// The + after the last tab: a new file or terminal, or one of your bookmarks.
+private struct NewTabMenu: View {
+    @ObservedObject var workspace: Workspace
+    @ObservedObject private var bookmarks = BookmarkStore.shared
+
+    static let width: CGFloat = 34
+
+    var body: some View {
+        Menu {
+            Button("New File") { workspace.newFile() }
+            Button("New Terminal") { workspace.openTerminalTab() }
+            Button("Quick Open…") { workspace.showQuickOpen = true }
+            Divider()
+            if bookmarks.bookmarks.isEmpty {
+                Text("No Bookmarks — right-click a tab to add one")
+            } else {
+                Section("Bookmarks") {
+                    ForEach(bookmarks.bookmarks) { bookmark in
+                        Button {
+                            WorkspaceWindowController.open(bookmark)
+                        } label: {
+                            Label {
+                                Text(bookmark.title)
+                            } icon: {
+                                if let color = bookmark.color {
+                                    Image(nsImage: color.swatch(selected: false))
+                                } else {
+                                    Image(systemName: bookmark.isTerminal ? "terminal" : "doc.text")
+                                }
+                            }
+                        }
+                        .help(bookmark.path)
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 12, weight: .medium))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .frame(width: Self.width)
+        .help("New tab or bookmark")
     }
 }
 

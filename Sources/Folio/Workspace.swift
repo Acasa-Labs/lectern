@@ -78,7 +78,12 @@ final class EditorTab: ObservableObject, Identifiable {
     /// Source Control and Terminal tabs aren't files: no path bar, preview or saving.
     var isFileTab: Bool { !isSourceControl && !isTerminal }
     @Published private(set) var terminalTitle = "Terminal"
+    /// Set from the tab's right-click menu.
+    @Published var color: TabColor?
+    @Published var isPinned = false
+    @Published var customTitle: String?
     var title: String {
+        if let customTitle, !customTitle.isEmpty { return customTitle }
         if isSourceControl { return "Source Control" }
         if isTerminal { return terminalTitle }
         return url?.lastPathComponent ?? "Untitled"
@@ -268,7 +273,8 @@ final class Workspace: ObservableObject {
         if tabs.count == 1, let only = tabs.first, only.url == nil, only.isFileTab, only.text.isEmpty {
             tabs = [tab]
         } else if let index = tabs.firstIndex(where: { $0.id == selectedTabID }) {
-            tabs.insert(tab, at: index + 1)
+            // Never in among the pinned tabs, which stay first.
+            tabs.insert(tab, at: max(index + 1, pinnedCount))
         } else {
             tabs.append(tab)
         }
@@ -307,10 +313,39 @@ final class Workspace: ObservableObject {
         return true
     }
 
+    /// Pinned tabs stay open.
     func closeOthers(than tab: EditorTab) {
-        for other in tabs where other.id != tab.id {
+        for other in tabs where other.id != tab.id && !other.isPinned {
             guard close(other) else { return }
         }
+    }
+
+    private var pinnedCount: Int { tabs.filter(\.isPinned).count }
+
+    /// Pinned tabs sit together at the left; unpinning puts a tab just after them.
+    func setPinned(_ tab: EditorTab, _ pinned: Bool) {
+        guard let index = tabs.firstIndex(where: { $0.id == tab.id }), tab.isPinned != pinned else { return }
+        tabs.remove(at: index)
+        tab.isPinned = pinned
+        tabs.insert(tab, at: pinnedCount)
+    }
+
+    func rename(_ tab: EditorTab) {
+        guard let name = promptForTabName(tab.title) else { return }
+        tab.customTitle = name.isEmpty ? nil : name
+        objectWillChange.send()
+    }
+
+    /// Opens a bookmark here: its file as a tab, or a new terminal in its folder. Its name and colour come too.
+    func open(_ bookmark: Bookmark) {
+        if bookmark.isTerminal {
+            openTerminalTab(in: bookmark.url)
+        } else {
+            open(bookmark.url)
+        }
+        guard let tab = selectedTab else { return }
+        if tab.customTitle == nil, bookmark.title != tab.title { tab.customTitle = bookmark.title }
+        if tab.color == nil { tab.color = bookmark.color }
     }
 
     func selectTab(offset: Int) {

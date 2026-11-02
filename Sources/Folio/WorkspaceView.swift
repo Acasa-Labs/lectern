@@ -372,8 +372,10 @@ private struct FileTreeRows: View {
 private struct TabBar: View {
     @ObservedObject var workspace: Workspace
 
-    /// Each tab's fixed width plus its separator.
-    private static let tabStride: CGFloat = 181
+    /// The tabs' fixed widths plus separators, to know when they overflow.
+    private var tabsWidth: CGFloat {
+        workspace.tabs.reduce(0) { $0 + ($1.isPinned ? TabButton.pinnedWidth : TabButton.width) + 1 }
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -382,10 +384,7 @@ private struct TabBar: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 0) {
                             ForEach(workspace.tabs) { tab in
-                                TabButton(tab: tab, isSelected: tab.id == workspace.selectedTabID,
-                                          select: { workspace.selectedTabID = tab.id },
-                                          close: { workspace.close(tab) },
-                                          closeOthers: { workspace.closeOthers(than: tab) })
+                                TabButton(tab: tab, workspace: workspace, isSelected: tab.id == workspace.selectedTabID)
                                     .id(tab.id)
                                 // A short separator, like Xcode's; a full Divider would stretch up under the toolbar.
                                 Rectangle()
@@ -400,7 +399,7 @@ private struct TabBar: View {
                         DispatchQueue.main.async { withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id) } }
                     }
                 }
-                if CGFloat(workspace.tabs.count) * Self.tabStride > geometry.size.width {
+                if tabsWidth > geometry.size.width {
                     Rectangle().fill(.separator).frame(width: 1, height: 16)
                     overflowMenu
                 }
@@ -438,62 +437,111 @@ private struct TabBar: View {
 
 private struct TabButton: View {
     @ObservedObject var tab: EditorTab
+    @ObservedObject var workspace: Workspace
+    @ObservedObject private var bookmarks = BookmarkStore.shared
     let isSelected: Bool
-    let select: () -> Void
-    let close: () -> Void
-    let closeOthers: () -> Void
     @State private var hovering = false
+
+    /// Every tab is the same width, so after closing one the next tab's ✕ lands under the pointer.
+    static let width: CGFloat = 180
+    static let pinnedWidth: CGFloat = 130
 
     var body: some View {
         HStack(spacing: 6) {
             Group {
                 if tab.isSourceControl {
-                    Image(systemName: "arrow.triangle.branch").foregroundStyle(.secondary)
+                    Image(systemName: "arrow.triangle.branch").foregroundStyle(tab.color?.color ?? .secondary)
                 } else if tab.isTerminal {
-                    Image(systemName: "terminal").foregroundStyle(.secondary)
+                    Image(systemName: "terminal").foregroundStyle(tab.color?.color ?? .secondary)
                 } else {
                     FileIcon(url: tab.url)
                 }
             }
-                .imageScale(.small)
+            .imageScale(.small)
             Text(tab.title)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .foregroundStyle(isSelected ? .primary : .secondary)
             Spacer(minLength: 0)
-            ZStack {
-                if tab.isDirty && !hovering {
-                    Circle().frame(width: 7, height: 7).foregroundStyle(.secondary)
-                } else {
-                    Button(action: close) {
-                        Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .opacity(hovering || isSelected ? 1 : 0)
-                }
-            }
-            .frame(width: 14, height: 14)
+            trailingControl
+                .frame(width: 14, height: 14)
         }
         .padding(.horizontal, 12)
-        // Every tab is the same width, so after closing one the next tab's ✕ lands under the pointer.
-        .frame(width: 180)
+        .frame(width: tab.isPinned ? Self.pinnedWidth : Self.width)
         .frame(maxHeight: .infinity)
-        .background(isSelected ? Color(nsColor: .textBackgroundColor) : .clear)
+        .background {
+            ZStack {
+                if isSelected { Color(nsColor: .textBackgroundColor) }
+                if let color = tab.color { color.color.opacity(isSelected ? 0.22 : 0.14) }
+            }
+        }
         .overlay(alignment: .top) {
-            if isSelected { Rectangle().fill(Color.accentColor).frame(height: 2) }
+            // The tab's colour, or the accent colour on the selected tab.
+            if let color = tab.color {
+                Rectangle().fill(color.color).frame(height: isSelected ? 3 : 2)
+            } else if isSelected {
+                Rectangle().fill(Color.accentColor).frame(height: 2)
+            }
         }
         .contentShape(Rectangle())
-        .onTapGesture(perform: select)
+        .onTapGesture { workspace.selectedTabID = tab.id }
         .onHover { hovering = $0 }
-        .help(tab.url?.path ?? "Untitled")
-        .contextMenu {
-            Button("Close Tab", action: close)
-            Button("Close Other Tabs", action: closeOthers)
-            if let url = tab.url {
-                Divider()
-                Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+        .help(tab.url?.path ?? tab.terminalDirectory?.path ?? tab.title)
+        .contextMenu { menu }
+    }
+
+    /// ✕ to close, a dot for unsaved changes, or a pin to unpin.
+    @ViewBuilder
+    private var trailingControl: some View {
+        if tab.isPinned {
+            Button { workspace.setPinned(tab, false) } label: {
+                Image(systemName: "pin.fill").font(.system(size: 9)).rotationEffect(.degrees(45))
             }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Unpin")
+        } else if tab.isDirty && !hovering {
+            Circle().frame(width: 7, height: 7).foregroundStyle(.secondary)
+        } else {
+            Button { workspace.close(tab) } label: {
+                Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .opacity(hovering || isSelected ? 1 : 0)
+        }
+    }
+
+    @ViewBuilder
+    private var menu: some View {
+        Button("Rename Tab…") { workspace.rename(tab) }
+        Menu("Colour") {
+            Button { tab.color = nil } label: {
+                if tab.color == nil { Label("None", systemImage: "checkmark") } else { Text("None") }
+            }
+            Divider()
+            ForEach(TabColor.allCases, id: \.self) { color in
+                Button { tab.color = color } label: {
+                    Label {
+                        Text(color.name)
+                    } icon: {
+                        Image(nsImage: color.swatch(selected: tab.color == color))
+                    }
+                }
+            }
+        }
+        Button(tab.isPinned ? "Unpin Tab" : "Pin Tab") { workspace.setPinned(tab, !tab.isPinned) }
+        if BookmarkStore.target(of: tab) != nil {
+            Button(bookmarks.bookmark(for: tab) == nil ? "Add to Bookmarks" : "Remove from Bookmarks") {
+                bookmarks.toggle(tab)
+            }
+        }
+        Divider()
+        Button("Close Tab") { workspace.close(tab) }
+        Button("Close Other Tabs") { workspace.closeOthers(than: tab) }
+        if let url = tab.url {
+            Divider()
+            Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
         }
     }
 }
@@ -700,6 +748,7 @@ private struct BinaryFileView: View {
 
 private struct WelcomeView: View {
     @ObservedObject private var recents = RecentStore.shared
+    @ObservedObject private var bookmarks = BookmarkStore.shared
 
     var body: some View {
         HStack(alignment: .top, spacing: 48) {
@@ -715,8 +764,9 @@ private struct WelcomeView: View {
                     shortcut("Quick Open", "⌘P") { AppDelegate.shared.quickOpen(nil) }
                 }
             }
-            if !recents.folders.isEmpty || !recents.files.isEmpty {
+            if !recents.folders.isEmpty || !recents.files.isEmpty || !bookmarks.bookmarks.isEmpty {
                 VStack(alignment: .leading, spacing: 16) {
+                    bookmarkSection
                     recentSection("Recent Folders", recents.folders, isFolder: true)
                     recentSection("Recent Files", recents.files, isFolder: false)
                 }
@@ -724,6 +774,43 @@ private struct WelcomeView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var bookmarkSection: some View {
+        if !bookmarks.bookmarks.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Bookmarks").font(.headline)
+                ForEach(bookmarks.bookmarks) { bookmark in
+                    Button {
+                        WorkspaceWindowController.open(bookmark)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Group {
+                                if bookmark.isTerminal {
+                                    Image(systemName: "terminal").foregroundStyle(bookmark.color?.color ?? .secondary)
+                                } else {
+                                    FileIcon(url: bookmark.url)
+                                }
+                            }
+                            .frame(width: 16)
+                            Text(bookmark.title).lineLimit(1)
+                            Text((bookmark.isTerminal ? bookmark.url : bookmark.url.deletingLastPathComponent()).path
+                                .replacingOccurrences(of: NSHomeDirectory(), with: "~"))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.head)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(bookmark.path)
+                    .contextMenu {
+                        Button("Remove Bookmark") { bookmarks.remove(bookmark) }
+                    }
+                }
+            }
+        }
     }
 
     @ViewBuilder

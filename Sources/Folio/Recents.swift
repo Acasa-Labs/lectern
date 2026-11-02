@@ -40,19 +40,46 @@ final class RecentStore: ObservableObject {
 
 /// What each window had open, so the next launch can pick up where you left off.
 struct WindowSession: Codable {
+    /// One tab: a file, or a terminal's folder, with what you set on it.
+    struct Entry: Codable {
+        var path: String?
+        var terminal: String?
+        var pinned: Bool?
+        var color: TabColor?
+        var title: String?
+    }
+
     var root: String?
+    /// File paths only; kept so sessions saved by older versions still load.
     var tabs: [String]
+    var entries: [Entry]?
     var selected: String?
+    var selectedIndex: Int?
 
     private static let key = "lastSession"
 
     init(_ workspace: Workspace) {
         root = workspace.root?.url.path
         tabs = workspace.tabs.compactMap { $0.url?.path }
+        var entries: [Entry] = []
+        for tab in workspace.tabs {
+            let entry: Entry
+            if tab.isTerminal, let folder = tab.terminalDirectory {
+                entry = Entry(terminal: folder.path)
+            } else if tab.isFileTab, let url = tab.url {
+                entry = Entry(path: url.path)
+            } else {
+                continue
+            }
+            if tab.id == workspace.selectedTabID { selectedIndex = entries.count }
+            entries.append(Entry(path: entry.path, terminal: entry.terminal, pinned: tab.isPinned,
+                                 color: tab.color, title: tab.customTitle))
+        }
+        self.entries = entries
         selected = workspace.selectedTab?.url?.path
     }
 
-    var isEmpty: Bool { root == nil && tabs.isEmpty }
+    var isEmpty: Bool { root == nil && tabs.isEmpty && (entries ?? []).isEmpty }
 
     static func save(_ sessions: [WindowSession]) {
         let kept = sessions.filter { !$0.isEmpty }

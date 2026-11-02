@@ -95,6 +95,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         (workspace ?? WorkspaceWindowController.newWindow().workspace).showFindInFolder()
     }
 
+    @objc func bookmarkTab(_ sender: Any?) {
+        guard let tab = workspace?.selectedTab else { return }
+        BookmarkStore.shared.toggle(tab)
+    }
+
     @objc func newTerminalTab(_ sender: Any?) {
         (workspace ?? WorkspaceWindowController.newWindow().workspace).openTerminalTab()
     }
@@ -167,6 +172,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return workspace?.canGoForward == true
         case #selector(nextTab(_:)), #selector(previousTab(_:)):
             return (workspace?.tabs.count ?? 0) > 1
+        case #selector(bookmarkTab(_:)):
+            guard let tab = workspace?.selectedTab, BookmarkStore.target(of: tab) != nil else { return false }
+            item.title = BookmarkStore.shared.bookmark(for: tab) == nil ? "Bookmark This Tab" : "Remove Bookmark for This Tab"
+            return true
         case #selector(openInTerminal(_:)):
             item.title = "Open in \(ExternalTerminal.preferred?.name ?? "Terminal")"
             return ExternalTerminal.preferred != nil
@@ -226,6 +235,13 @@ enum MainMenu {
         let openRecent = NSMenuItem(title: "Open Recent", action: nil, keyEquivalent: "")
         openRecent.submenu = NSMenu(title: "Open Recent")
         openRecent.submenu?.delegate = OpenRecentMenu.shared
+
+        // Bookmarks: the fixed item, then the saved bookmarks (filled in each time it opens).
+        let bookmarks = menu("Bookmarks", [
+            item("Bookmark This Tab", #selector(AppDelegate.bookmarkTab(_:)), "d"),
+            .separator(),
+        ])
+        bookmarks.submenu?.delegate = BookmarksMenu.shared
 
         // View → Terminal App: which installed terminal "Open in Terminal" uses.
         let terminalApps = NSMenuItem(title: "Terminal App", action: nil, keyEquivalent: "")
@@ -299,6 +315,7 @@ enum MainMenu {
                 item("Next Tab", #selector(AppDelegate.nextTab(_:)), "]", [.command, .shift]),
                 item("Previous Tab", #selector(AppDelegate.previousTab(_:)), "[", [.command, .shift]),
             ]),
+            bookmarks,
             window,
         ].forEach(main.addItem)
         return main
@@ -348,6 +365,23 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
         return controller
     }
 
+    /// Opens a bookmark in the front window, or a new one.
+    static func open(_ bookmark: Bookmark) {
+        guard FileManager.default.fileExists(atPath: bookmark.path) else {
+            let alert = NSAlert()
+            alert.messageText = "“\(bookmark.title)” can't be found"
+            alert.informativeText = "\(bookmark.path) was moved or deleted. Remove the bookmark?"
+            alert.addButton(withTitle: "Remove Bookmark")
+            alert.addButton(withTitle: "Keep")
+            if alert.runModal() == .alertFirstButtonReturn { BookmarkStore.shared.remove(bookmark) }
+            return
+        }
+        let controller = bookmark.isTerminal ? (current ?? newWindow())
+            : (all.first { $0.workspace.contains(bookmark.url) } ?? current ?? newWindow())
+        controller.workspace.open(bookmark)
+        controller.showWindow(nil)
+    }
+
     /// Folders open as a workspace window; files open as a tab in the window whose folder holds them,
     /// else the front window.
     static func open(_ urls: [URL], preferring preferred: Workspace? = nil) {
@@ -395,11 +429,33 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
     static func restore(_ session: WindowSession) {
         let fileManager = FileManager.default
         let root = session.root.map { URL(fileURLWithPath: $0) }.flatMap { fileManager.fileExists(atPath: $0.path) ? $0 : nil }
-        let tabs = session.tabs.filter { fileManager.fileExists(atPath: $0) }
-        guard root != nil || !tabs.isEmpty else { return }
+        // Older sessions only listed file paths.
+        let entries = session.entries ?? session.tabs.map { WindowSession.Entry(path: $0) }
+        let available = entries.filter { entry in
+            [entry.path, entry.terminal].compactMap { $0 }.contains { fileManager.fileExists(atPath: $0) }
+        }
+        guard root != nil || !available.isEmpty else { return }
         let workspace = newWindow(root: root).workspace
-        tabs.forEach { workspace.open(URL(fileURLWithPath: $0)) }
-        if let selected = session.selected, fileManager.fileExists(atPath: selected) {
+        var restored: [EditorTab?] = []
+        for entry in entries {
+            if let path = entry.path, fileManager.fileExists(atPath: path) {
+                workspace.open(URL(fileURLWithPath: path))
+            } else if let folder = entry.terminal, fileManager.fileExists(atPath: folder) {
+                // A fresh shell in the same folder; it starts when the tab is first shown.
+                workspace.openTerminalTab(in: URL(fileURLWithPath: folder))
+            } else {
+                restored.append(nil)
+                continue
+            }
+            let tab = workspace.selectedTab
+            tab?.color = entry.color
+            tab?.customTitle = entry.title
+            if entry.pinned == true, let tab { workspace.setPinned(tab, true) }
+            restored.append(tab)
+        }
+        if let index = session.selectedIndex, restored.indices.contains(index), let tab = restored[index] {
+            workspace.selectedTabID = tab.id
+        } else if let selected = session.selected, fileManager.fileExists(atPath: selected) {
             workspace.open(URL(fileURLWithPath: selected))
         }
     }

@@ -126,9 +126,10 @@ final class PreviewController: NSObject, WKNavigationDelegate {
             return decisionHandler(.allow)
         }
         decisionHandler(.cancel)
-        if url.isFileURL, FileManager.default.fileExists(atPath: url.path) {
+        // A link in a document must never launch an app or hand a custom URL scheme to another app.
+        if url.isFileURL {
             openFile(url)
-        } else {
+        } else if ["http", "https", "mailto"].contains(url.scheme?.lowercased() ?? "") {
             NSWorkspace.shared.open(url)
         }
     }

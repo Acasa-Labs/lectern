@@ -95,6 +95,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         (workspace ?? WorkspaceWindowController.newWindow().workspace).showFindInFolder()
     }
 
+    @objc func newTerminalTab(_ sender: Any?) {
+        (workspace ?? WorkspaceWindowController.newWindow().workspace).openTerminalTab()
+    }
+
+    @objc func openInTerminal(_ sender: Any?) {
+        if let workspace { workspace.openInTerminal() } else { ExternalTerminal.open(FileManager.default.homeDirectoryForCurrentUser) }
+    }
+
+    @objc func chooseTerminal(_ sender: NSMenuItem) {
+        guard let bundleID = sender.representedObject as? String else { return }
+        ExternalTerminal.choose(bundleID)
+    }
+
     @objc func showSourceControl(_ sender: Any?) {
         workspace?.showSourceControl()
     }
@@ -105,7 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     @objc func toggleEditing(_ sender: Any?) {
-        guard let tab = workspace?.selectedTab, tab.kind.hasPreview else { return }
+        guard let tab = workspace?.selectedTab, tab.isFileTab, tab.kind.hasPreview else { return }
         tab.showsPreview.toggle()
     }
 
@@ -141,7 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case #selector(toggleEditing(_:)):
             let tab = workspace?.selectedTab
             item.title = tab?.showsPreview == true ? "Show Editor" : "Show Preview"
-            return tab?.kind.hasPreview == true && tab?.isBinary == false
+            return tab?.isFileTab == true && tab?.kind.hasPreview == true && tab?.isBinary == false
         case #selector(toggleWordWrap(_:)):
             item.state = wordWrap ? .on : .off
             return true
@@ -154,6 +167,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return workspace?.canGoForward == true
         case #selector(nextTab(_:)), #selector(previousTab(_:)):
             return (workspace?.tabs.count ?? 0) > 1
+        case #selector(openInTerminal(_:)):
+            item.title = "Open in \(ExternalTerminal.preferred?.name ?? "Terminal")"
+            return ExternalTerminal.preferred != nil
+        case #selector(chooseTerminal(_:)):
+            item.state = (item.representedObject as? String) == ExternalTerminal.preferred?.bundleID ? .on : .off
+            return true
         case #selector(showSourceControl(_:)):
             return workspace?.git?.isRepository == true
         case #selector(quickOpen(_:)), #selector(toggleFileSidebar(_:)):
@@ -208,6 +227,15 @@ enum MainMenu {
         openRecent.submenu = NSMenu(title: "Open Recent")
         openRecent.submenu?.delegate = OpenRecentMenu.shared
 
+        // View → Terminal App: which installed terminal "Open in Terminal" uses.
+        let terminalApps = NSMenuItem(title: "Terminal App", action: nil, keyEquivalent: "")
+        terminalApps.submenu = NSMenu(title: "Terminal App")
+        for app in ExternalTerminal.installed {
+            let choice = item(app.name, #selector(AppDelegate.chooseTerminal(_:)))
+            choice.representedObject = app.bundleID
+            terminalApps.submenu?.addItem(choice)
+        }
+
         let main = NSMenu()
         [
             menu("Folio", [
@@ -249,6 +277,9 @@ enum MainMenu {
             menu("View", [
                 item("Toggle Sidebar", #selector(AppDelegate.toggleFileSidebar(_:)), "b"),
                 item("Source Control", #selector(AppDelegate.showSourceControl(_:)), "g", [.command, .option]),
+                item("New Terminal Tab", #selector(AppDelegate.newTerminalTab(_:)), "`", .control),
+                item("Open in Terminal", #selector(AppDelegate.openInTerminal(_:)), "`", [.control, .shift]),
+                terminalApps,
                 item("Show Preview", #selector(AppDelegate.toggleEditing(_:)), "e"),
                 item("Word Wrap", #selector(AppDelegate.toggleWordWrap(_:)), "z", .option),
                 item("Minimap", #selector(AppDelegate.toggleMinimap(_:)), "m", [.command, .control, .shift]),
@@ -349,6 +380,7 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
+        workspace.tabs.filter(\.isTerminal).forEach { $0.endTerminal() }
         // Closing the last window still leaves something to come back to.
         if Self.all.count == 1 { Self.saveSession() }
         Self.all.removeAll { $0 === self }

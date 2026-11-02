@@ -16,7 +16,7 @@ struct WorkspaceView: View {
                     Divider()
                 }
                 if let tab = workspace.selectedTab {
-                    if !tab.isSourceControl {
+                    if tab.isFileTab {
                         JumpBar(workspace: workspace, tab: tab)
                         Divider()
                     }
@@ -58,7 +58,11 @@ struct WorkspaceView: View {
                     .help("Go forward (⌃⌘→)")
             }
             ToolbarItemGroup(placement: .primaryAction) {
-                if let tab = workspace.selectedTab, tab.kind.hasPreview, !tab.isBinary {
+                Button { workspace.openTerminalTab() } label: {
+                    Label("Terminal", systemImage: "terminal")
+                }
+                .help("New Terminal tab in this folder (⌃`)")
+                if let tab = workspace.selectedTab, tab.isFileTab, tab.kind.hasPreview, !tab.isBinary {
                     EditToggle(tab: tab)
                 }
             }
@@ -132,6 +136,17 @@ private struct SidebarView: View {
                     if let path = paths.first {
                         Button("Reveal in Finder") {
                             NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                        }
+                        // A file's terminal starts in its folder.
+                        let folder: URL = {
+                            var isDirectory: ObjCBool = false
+                            FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
+                            let url = URL(fileURLWithPath: path)
+                            return isDirectory.boolValue ? url : url.deletingLastPathComponent()
+                        }()
+                        Button("New Terminal Here") { workspace.openTerminalTab(in: folder) }
+                        if let terminal = ExternalTerminal.preferred {
+                            Button("Open in \(terminal.name)") { ExternalTerminal.open(folder) }
                         }
                         Button("Copy Path") {
                             NSPasteboard.general.clearContents()
@@ -434,6 +449,8 @@ private struct TabButton: View {
             Group {
                 if tab.isSourceControl {
                     Image(systemName: "arrow.triangle.branch").foregroundStyle(.secondary)
+                } else if tab.isTerminal {
+                    Image(systemName: "terminal").foregroundStyle(.secondary)
                 } else {
                     FileIcon(url: tab.url)
                 }
@@ -490,7 +507,9 @@ private struct TabContentView: View {
     @AppStorage("zoom") private var zoom = 1.0
 
     var body: some View {
-        if tab.isSourceControl {
+        if tab.isTerminal {
+            TerminalTabView(tab: tab, fontSize: 13 * zoom)
+        } else if tab.isSourceControl {
             if let git {
                 GitView(model: git)
             } else {

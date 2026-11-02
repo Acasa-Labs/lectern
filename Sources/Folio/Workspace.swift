@@ -65,16 +65,30 @@ final class EditorTab: ObservableObject, Identifiable {
     private var modificationDate: Date?
     private var editorController: EditorController?
     private var previewController: PreviewController?
+    private var terminalController: TerminalController?
+    /// Where a Terminal tab's shell starts.
+    var terminalDirectory: URL?
+    var onTerminalExit: () -> Void = {}
 
     var isDirty: Bool { text != savedText }
     /// The Source Control tab shows the repository instead of a file.
     let isSourceControl: Bool
-    var title: String { isSourceControl ? "Source Control" : url?.lastPathComponent ?? "Untitled" }
+    /// A Terminal tab runs your shell instead of showing a file.
+    let isTerminal: Bool
+    /// Source Control and Terminal tabs aren't files: no path bar, preview or saving.
+    var isFileTab: Bool { !isSourceControl && !isTerminal }
+    @Published private(set) var terminalTitle = "Terminal"
+    var title: String {
+        if isSourceControl { return "Source Control" }
+        if isTerminal { return terminalTitle }
+        return url?.lastPathComponent ?? "Untitled"
+    }
     var kind: DocumentKind { DocumentKind(fileURL: url) }
 
-    init(url: URL?, isSourceControl: Bool = false) {
+    init(url: URL?, isSourceControl: Bool = false, isTerminal: Bool = false) {
         self.url = url
         self.isSourceControl = isSourceControl
+        self.isTerminal = isTerminal
         var contents = ""
         if let url, let data = try? Data(contentsOf: url) {
             isBinary = data.prefix(8000).contains(0)
@@ -92,6 +106,27 @@ final class EditorTab: ObservableObject, Identifiable {
         let controller = EditorController(tab: self)
         editorController = controller
         return controller
+    }
+
+    /// Tabs are only used from the main thread, where SwiftTerm's views live.
+    var terminal: TerminalController {
+        if let terminalController { return terminalController }
+        let controller = MainActor.assumeIsolated {
+            let controller = TerminalController(directory: terminalDirectory)
+            controller.onTitleChange = { [weak self] title in
+                self?.terminalTitle = title.isEmpty ? "Terminal" : title
+            }
+            controller.onExit = { [weak self] in self?.onTerminalExit() }
+            return controller
+        }
+        terminalController = controller
+        return controller
+    }
+
+    /// Ends a Terminal tab's shell.
+    func endTerminal() {
+        guard let terminalController else { return }
+        MainActor.assumeIsolated { terminalController.terminate() }
     }
 
     var preview: PreviewController {
@@ -230,7 +265,7 @@ final class Workspace: ObservableObject {
         }
         let tab = makeTab(url: url)
         // A blank, untouched Untitled tab gives way to the first real file.
-        if tabs.count == 1, let only = tabs.first, only.url == nil, !only.isSourceControl, only.text.isEmpty {
+        if tabs.count == 1, let only = tabs.first, only.url == nil, only.isFileTab, only.text.isEmpty {
             tabs = [tab]
         } else if let index = tabs.firstIndex(where: { $0.id == selectedTabID }) {
             tabs.insert(tab, at: index + 1)
@@ -265,6 +300,7 @@ final class Workspace: ObservableObject {
     func close(_ tab: EditorTab) -> Bool {
         guard confirmDiscard(tab), let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return false }
         tabs.remove(at: index)
+        if tab.isTerminal { tab.endTerminal() }
         if selectedTabID == tab.id {
             selectedTabID = tabs.isEmpty ? nil : tabs[min(index, tabs.count - 1)].id
         }
@@ -294,6 +330,32 @@ final class Workspace: ObservableObject {
         let tab = EditorTab(url: nil, isSourceControl: true)
         tabs.append(tab)
         selectedTabID = tab.id
+    }
+
+    // MARK: Terminal
+
+    /// The folder a terminal starts in: the open folder, else the current file's folder, else home.
+    private var terminalFolder: URL {
+        root?.url
+            ?? selectedTab?.url?.deletingLastPathComponent()
+            ?? FileManager.default.homeDirectoryForCurrentUser
+    }
+
+    /// Opens a Terminal tab running your shell, in `folder` or the workspace's folder.
+    func openTerminalTab(in folder: URL? = nil) {
+        let tab = EditorTab(url: nil, isTerminal: true)
+        tab.terminalDirectory = folder ?? terminalFolder
+        tab.onTerminalExit = { [weak self, weak tab] in
+            guard let self, let tab, tabs.contains(where: { $0.id == tab.id }) else { return }
+            close(tab)
+        }
+        tabs.append(tab)
+        selectedTabID = tab.id
+    }
+
+    /// Opens the folder in your own terminal app (iTerm or Terminal), outside Folio.
+    func openInTerminal() {
+        ExternalTerminal.open(terminalFolder)
     }
 
     // MARK: Find in Folder

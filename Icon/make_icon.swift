@@ -1,4 +1,4 @@
-// Draws the 1024px Lectern icon: two stacked pages with colour-coded lines on a dark squircle.
+// Draws the 1024px Lectern icon: a wooden lectern holding an open book of colour-coded lines, on a dark squircle.
 // Usage: swift Icon/make_icon.swift <out.png>
 import AppKit
 
@@ -12,9 +12,35 @@ func rgb(_ hex: Int, _ alpha: CGFloat = 1) -> CGColor {
             blue: CGFloat(hex & 0xff) / 255, alpha: alpha)
 }
 
+func gradient(_ colors: [Int]) -> CGGradient {
+    CGGradient(colorsSpace: nil, colors: colors.map { rgb($0) } as CFArray, locations: nil)!
+}
+
+/// Fills a path with a vertical gradient, top colour first.
+func fill(_ path: CGPath, _ colors: [Int], shadow: CGFloat = 0) {
+    let box = path.boundingBox
+    if shadow > 0 {
+        ctx.saveGState()
+        ctx.setShadow(offset: CGSize(width: 0, height: -12), blur: shadow, color: CGColor(gray: 0, alpha: 0.5))
+        ctx.addPath(path)
+        ctx.setFillColor(rgb(colors.last!))
+        ctx.fillPath()
+        ctx.restoreGState()
+    }
+    ctx.saveGState()
+    ctx.addPath(path)
+    ctx.clip()
+    ctx.drawLinearGradient(gradient(colors), start: CGPoint(x: 0, y: box.maxY), end: CGPoint(x: 0, y: box.minY), options: [])
+    ctx.restoreGState()
+}
+
+func rounded(_ rect: CGRect, _ radius: CGFloat) -> CGPath {
+    CGPath(roundedRect: rect, cornerWidth: radius, cornerHeight: radius, transform: nil)
+}
+
 // macOS icon grid: 824pt body centered on a 1024 canvas.
 let body = CGRect(x: 100, y: 100, width: 824, height: 824)
-let shape = CGPath(roundedRect: body, cornerWidth: 185, cornerHeight: 185, transform: nil)
+let shape = rounded(body, 185)
 
 ctx.saveGState()
 ctx.setShadow(offset: CGSize(width: 0, height: -10), blur: 24, color: CGColor(gray: 0, alpha: 0.35))
@@ -26,78 +52,92 @@ ctx.restoreGState()
 ctx.saveGState()
 ctx.addPath(shape)
 ctx.clip()
-let background = CGGradient(colorsSpace: nil, colors: [rgb(0x2b3a67), rgb(0x0f1424)] as CFArray, locations: [0, 1])!
-ctx.drawLinearGradient(background, start: CGPoint(x: 0, y: body.maxY), end: CGPoint(x: 0, y: body.minY), options: [])
+ctx.drawLinearGradient(gradient([0x2b3a67, 0x0f1424]), start: CGPoint(x: 0, y: body.maxY), end: CGPoint(x: 0, y: body.minY), options: [])
 let glow = CGGradient(colorsSpace: nil, colors: [rgb(0x5b8cff, 0.35), rgb(0x5b8cff, 0)] as CFArray, locations: [0, 1])!
-ctx.drawRadialGradient(glow, startCenter: CGPoint(x: 360, y: 760), startRadius: 0,
-                       endCenter: CGPoint(x: 360, y: 760), endRadius: 520, options: [])
+ctx.drawRadialGradient(glow, startCenter: CGPoint(x: 512, y: 700), startRadius: 0,
+                       endCenter: CGPoint(x: 512, y: 700), endRadius: 520, options: [])
 ctx.restoreGState()
 
-/// A page with a folded top-right corner, drawn around its own centre and rotated.
-func page(center: CGPoint, angle: CGFloat, fill: CGColor, rows: [(indent: CGFloat, segments: [(CGFloat, Int)])], shadow: CGFloat) {
-    let w: CGFloat = 470, h: CGFloat = 590, fold: CGFloat = 96, r: CGFloat = 34
-    ctx.saveGState()
-    ctx.translateBy(x: center.x, y: center.y)
-    ctx.rotate(by: angle)
-    let left = -w / 2, right = w / 2, bottom = -h / 2, top = h / 2
+// Stand: a base and a column, in walnut.
+fill(rounded(CGRect(x: 322, y: 196, width: 380, height: 56), 28), [0x8a5a3b, 0x5a3622], shadow: 30)
+fill(rounded(CGRect(x: 466, y: 236, width: 92, height: 250), 20), [0x6e452c, 0x4a2c1b])
+// Column highlight.
+fill(rounded(CGRect(x: 482, y: 250, width: 18, height: 222), 9), [0x9a6a48, 0x7a4f33])
 
-    let outline = CGMutablePath()
-    outline.move(to: CGPoint(x: left + r, y: bottom))
-    outline.addLine(to: CGPoint(x: right - r, y: bottom))
-    outline.addArc(tangent1End: CGPoint(x: right, y: bottom), tangent2End: CGPoint(x: right, y: bottom + r), radius: r)
-    outline.addLine(to: CGPoint(x: right, y: top - fold))
-    outline.addLine(to: CGPoint(x: right - fold, y: top))
-    outline.addLine(to: CGPoint(x: left + r, y: top))
-    outline.addArc(tangent1End: CGPoint(x: left, y: top), tangent2End: CGPoint(x: left, y: top - r), radius: r)
-    outline.addLine(to: CGPoint(x: left, y: bottom + r))
-    outline.addArc(tangent1End: CGPoint(x: left, y: bottom), tangent2End: CGPoint(x: left + r, y: bottom), radius: r)
-    outline.closeSubpath()
+// Desk: the slanted top, seen from the front, so it's wider at the near (lower) edge.
+let desk = CGMutablePath()
+desk.move(to: CGPoint(x: 196, y: 500))
+desk.addLine(to: CGPoint(x: 828, y: 500))
+desk.addLine(to: CGPoint(x: 770, y: 790))
+desk.addLine(to: CGPoint(x: 254, y: 790))
+desk.closeSubpath()
+fill(desk, [0x9c6844, 0x7a4b2e], shadow: 40)
+// The front lip that holds the book.
+fill(rounded(CGRect(x: 176, y: 452, width: 672, height: 62), 22), [0xa8724c, 0x6e432a])
 
-    ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: -14), blur: shadow, color: CGColor(gray: 0, alpha: 0.45))
-    ctx.addPath(outline)
-    ctx.setFillColor(fill)
-    ctx.fillPath()
-    ctx.restoreGState()
+// The open book: two pages bowing down towards the gutter.
+let gutterX: CGFloat = 512
+func pageOutline(left: Bool) -> CGPath {
+    let s: CGFloat = left ? -1 : 1
+    let p = CGMutablePath()
+    p.move(to: CGPoint(x: gutterX, y: 512))
+    p.addQuadCurve(to: CGPoint(x: gutterX + s * 286, y: 528), control: CGPoint(x: gutterX + s * 140, y: 540))
+    p.addLine(to: CGPoint(x: gutterX + s * 244, y: 760))
+    p.addQuadCurve(to: CGPoint(x: gutterX, y: 742), control: CGPoint(x: gutterX + s * 120, y: 790))
+    p.closeSubpath()
+    return p
+}
+for left in [true, false] {
+    fill(pageOutline(left: left), left ? [0xeef2f8, 0xd9e0ec] : [0xf7f9fc, 0xe3e8f1], shadow: 16)
+}
+// Gutter shading.
+ctx.saveGState()
+ctx.addPath(pageOutline(left: true))
+ctx.addPath(pageOutline(left: false))
+ctx.clip()
+let gutter = CGGradient(colorsSpace: nil, colors: [rgb(0x0f1424, 0), rgb(0x0f1424, 0.22), rgb(0x0f1424, 0)] as CFArray,
+                        locations: [0, 0.5, 1])!
+ctx.drawLinearGradient(gutter, start: CGPoint(x: gutterX - 40, y: 0), end: CGPoint(x: gutterX + 40, y: 0), options: [])
+ctx.restoreGState()
 
-    // Folded corner.
-    let corner = CGMutablePath()
-    corner.move(to: CGPoint(x: right - fold, y: top))
-    corner.addLine(to: CGPoint(x: right - fold, y: top - fold + 18))
-    corner.addQuadCurve(to: CGPoint(x: right - fold + 18, y: top - fold), control: CGPoint(x: right - fold, y: top - fold))
-    corner.addLine(to: CGPoint(x: right, y: top - fold))
-    corner.closeSubpath()
-    ctx.addPath(corner)
-    ctx.setFillColor(rgb(0xc9d3e6))
-    ctx.fillPath()
-
-    // Code-like rows: an indent, then coloured segments (e.g. a key and its value).
-    var y = top - 140
-    for row in rows {
-        var x = left + 58 + row.indent
-        for (length, color) in row.segments {
-            let bar = CGRect(x: x, y: y, width: length, height: 30)
-            ctx.addPath(CGPath(roundedRect: bar, cornerWidth: 15, cornerHeight: 15, transform: nil))
+// Code-like rows on each page: an indent, then coloured segments. Rows shorten a little towards the far edge.
+func rows(left: Bool, _ lines: [(indent: CGFloat, segments: [(CGFloat, Int)])]) {
+    var y: CGFloat = 690
+    for (index, line) in lines.enumerated() {
+        let scale = 0.86 + 0.03 * CGFloat(index)
+        var x = (left ? gutterX - 236 : gutterX + 40) + 14 * (CGFloat(lines.count - index) / CGFloat(lines.count)) + line.indent
+        for (length, color) in line.segments {
+            let bar = CGRect(x: x, y: y, width: length * scale, height: 20)
+            ctx.addPath(rounded(bar, 10))
             ctx.setFillColor(rgb(color))
             ctx.fillPath()
-            x += length + 22
+            x += length * scale + 14
         }
-        y -= 62
+        y -= 38
     }
-    ctx.restoreGState()
 }
+rows(left: true, [
+    (0, [(44, 0xcf222e), (110, 0x0550ae)]),
+    (28, [(76, 0x0550ae), (84, 0x0a9d44)]),
+    (28, [(60, 0x0550ae), (56, 0xe07b00)]),
+    (0, [(24, 0x8b97ad)]),
+])
+rows(left: false, [
+    (0, [(52, 0xa626a4), (96, 0x0550ae)]),
+    (28, [(120, 0x8b97ad)]),
+    (28, [(70, 0x0550ae), (70, 0x0a9d44)]),
+    (0, [(150, 0x8b97ad)]),
+])
 
-// Back page, tilted left and plain.
-page(center: CGPoint(x: 458, y: 522), angle: 0.13, fill: rgb(0xa9b6d3), rows: [], shadow: 30)
-// Front page with colour-coded "code", in the editor's palette.
-page(center: CGPoint(x: 560, y: 500), angle: -0.06, fill: rgb(0xf7f9fc), rows: [
-    (0, [(70, 0xcf222e), (150, 0x0550ae)]),
-    (44, [(110, 0x0550ae), (150, 0x0a9d44)]),
-    (44, [(90, 0x0550ae), (80, 0xe07b00)]),
-    (44, [(130, 0x0550ae), (110, 0xa626a4)]),
-    (0, [(40, 0x8b97ad)]),
-    (0, [(250, 0x8b97ad)]),
-], shadow: 40)
+// A ribbon bookmark hanging from the gutter over the lip.
+let ribbon = CGMutablePath()
+ribbon.move(to: CGPoint(x: gutterX - 16, y: 520))
+ribbon.addLine(to: CGPoint(x: gutterX + 16, y: 520))
+ribbon.addLine(to: CGPoint(x: gutterX + 16, y: 398))
+ribbon.addLine(to: CGPoint(x: gutterX, y: 414))
+ribbon.addLine(to: CGPoint(x: gutterX - 16, y: 398))
+ribbon.closeSubpath()
+fill(ribbon, [0xe5484d, 0xb4232a], shadow: 8)
 
 let rep = NSBitmapImageRep(cgImage: ctx.makeImage()!)
 try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[1]))

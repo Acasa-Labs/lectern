@@ -24,6 +24,8 @@ private struct SourceControlPanel: View {
     @ObservedObject var actions: GitActions
     @State private var message = ""
     @State private var amend = false
+    /// Sections you've folded away.
+    @State private var collapsed: Set<String> = []
 
     private var status: GitStatus? { git.status }
     private var branch: GitBranch? { git.snapshot?.headBranch }
@@ -85,8 +87,10 @@ private struct SourceControlPanel: View {
                 Button("Pop Latest Stash") { actions.popStash() }
                     .disabled(git.snapshot?.stashes.isEmpty ?? true)
             } label: {
-                Label(git.branchName ?? "Detached HEAD", systemImage: "arrow.triangle.branch")
-                    .fontWeight(.semibold)
+                HStack(spacing: 5) {
+                    Text(git.snapshot?.name ?? "Repository").fontWeight(.semibold)
+                    Text(git.branchName ?? "detached").foregroundStyle(.secondary)
+                }
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
@@ -170,53 +174,75 @@ private struct SourceControlPanel: View {
 
     private func changes(_ status: GitStatus) -> some View {
         List {
-            section("Conflicts", status.conflicted, staged: false)
-            section("Staged", status.staged, staged: true)
-            section("Changes", status.unstaged, staged: false)
-            section("Untracked", status.untracked, staged: false)
+            section("Conflicts", "exclamationmark.triangle", status.conflicted, staged: false)
+            section("Staged", "tray.full", status.staged, staged: true)
+            section("Uncommitted Changes", "plus.forwardslash.minus", status.unstaged, staged: false)
+            section("Untracked", "questionmark.folder", status.untracked, staged: false)
         }
         .listStyle(.sidebar)
         .environment(\.sidebarRowSize, .small)
     }
 
     @ViewBuilder
-    private func section(_ title: String, _ changes: [GitFileChange], staged: Bool) -> some View {
+    /// A group of files, like Xcode's "Uncommitted Changes": a plain row (not a List section header,
+    /// which macOS squeezes on hover) whose columns match the file rows below it.
+    private func section(_ title: String, _ icon: String, _ changes: [GitFileChange], staged: Bool) -> some View {
         if !changes.isEmpty {
-            Section {
-                ForEach(changes) { change in row(change, staged: staged) }
-            } header: {
-                // Laid out like a file row: + / − above the rows' stage column, and the status-letter
-                // column left empty, which is where macOS shows the section's collapse arrow.
-                HStack(spacing: 4) {
-                    Text("\(title) (\(changes.count))")
-                    Spacer()
-                    Group {
-                        if staged {
-                            Button { actions.unstage(changes.map(\.path)) } label: { Image(systemName: "minus") }
-                                .help("Unstage All")
-                        } else {
-                            Button { actions.stage(changes.map(\.path)) } label: { Image(systemName: "plus") }
-                                .help("Stage All")
-                        }
+            let isOpen = !collapsed.contains(title)
+            HStack(spacing: 4) {
+                Button {
+                    if isOpen { collapsed.insert(title) } else { collapsed.remove(title) }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(isOpen ? 90 : 0))
+                            .frame(width: 10)
+                        Image(systemName: icon)
+                            .foregroundStyle(Color.accentColor)
+                        Text(title)
                     }
-                    .buttonStyle(.borderless)
-                    .frame(width: Self.actionWidth)
-                    Color.clear.frame(width: Self.letterWidth + Self.headerExtraWidth)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .help(isOpen ? "Hide these files" : "Show these files")
+                Spacer()
+                // Same columns as a file row: (discard), stage / unstage, then the count where the badges are.
+                Color.clear.frame(width: Self.actionWidth)
+                Group {
+                    if staged {
+                        Button { actions.unstage(changes.map(\.path)) } label: { Image(systemName: "minus") }
+                            .help("Unstage All")
+                    } else {
+                        Button { actions.stage(changes.map(\.path)) } label: { Image(systemName: "plus") }
+                            .help(title == "Conflicts" ? "Mark All Resolved" : "Stage All")
+                    }
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .frame(width: Self.actionWidth)
+                Text(verbatim: "\(changes.count)")
+                    .font(.callout.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: Self.letterWidth)
+            }
+            .lineLimit(1)
+            if isOpen {
+                ForEach(changes) { change in row(change, staged: staged) }
             }
         }
     }
 
     private func row(_ change: GitFileChange, staged: Bool) -> some View {
         HStack(spacing: 4) {
+            Color.clear.frame(width: 16)  // indent under the group's arrow, as in Xcode
             Label {
                 Text(change.fileName)
             } icon: {
                 FileIcon(url: URL(fileURLWithPath: change.path))
             }
-            Text(change.directory)
-                .foregroundStyle(.secondary)
-                .truncationMode(.head)
+            // The folder is in the tooltip, as in Xcode, leaving the narrow sidebar to the file name.
             Spacer(minLength: 4)
             // Always shown, at fixed widths, so nothing shifts as the pointer moves.
             Group {
@@ -233,10 +259,12 @@ private struct SourceControlPanel: View {
             .buttonStyle(.borderless)
             .frame(width: Self.actionWidth)
             .foregroundStyle(.secondary)
+            // Boxed status letter, like Xcode's.
             Text(change.kind.letter)
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .font(.system(size: 9, weight: .bold, design: .rounded))
                 .foregroundStyle(Self.color(for: change.kind))
-                .frame(width: Self.letterWidth)
+                .frame(width: Self.letterWidth, height: Self.letterWidth)
+                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Self.color(for: change.kind), lineWidth: 1))
         }
         .lineLimit(1)
         .contentShape(Rectangle())
@@ -278,9 +306,7 @@ private struct SourceControlPanel: View {
 
     /// Shared by rows and section headers so their buttons line up.
     private static let actionWidth: CGFloat = 16
-    private static let letterWidth: CGFloat = 14
-    /// Sidebar section headers reach further right than their rows; measured on screen.
-    private static let headerExtraWidth: CGFloat = 14
+    private static let letterWidth: CGFloat = 15
 
     private static func color(for kind: GitFileChange.Kind) -> Color {
         switch kind {

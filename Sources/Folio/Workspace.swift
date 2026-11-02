@@ -201,6 +201,8 @@ final class Workspace: ObservableObject {
     var isEmpty: Bool { root == nil && tabs.allSatisfy { $0.url == nil && !$0.isDirty } }
     /// The open folder's repository (Flowboard's git reader), if the folder is in one.
     @Published private(set) var git: GitViewModel?
+    /// Stage, commit, push and the rest, run with your own git.
+    @Published private(set) var gitActions: GitActions?
 
     init(root: URL? = nil) {
         if let root { setRoot(root) }
@@ -212,10 +214,13 @@ final class Workspace: ObservableObject {
         columnVisibility = .all
         RecentStore.shared.addFolder(url)
         // Workspaces are only ever touched from the main thread (UI and menu actions).
-        git = MainActor.assumeIsolated {
+        (git, gitActions) = MainActor.assumeIsolated {
             let git = GitViewModel(path: url.path)
             Task { await git.start() }
-            return git
+            let actions = GitActions(model: git)
+            // A checkout, discard or pull changes files on disk: refresh the tree and reload open files.
+            actions.afterChange = { [weak self] in self?.refreshFromDisk() }
+            return (git, actions)
         }
     }
 

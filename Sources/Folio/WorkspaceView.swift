@@ -117,6 +117,8 @@ private struct SidebarView: View {
             case .search: FindNavigator(workspace: workspace, search: workspace.search)
             }
         }
+        // Fill the sidebar and stay at the top, even when a tab's content is short (e.g. "No Changes").
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     @ViewBuilder
@@ -272,12 +274,14 @@ private struct SourceControlNavigator: View {
                 } else {
                     ContentUnavailableView("No Changes", systemImage: "checkmark.circle",
                                            description: Text("The working tree matches the last commit."))
+                        .frame(maxHeight: .infinity)
                 }
             }
         } else {
             ContentUnavailableView("No Repository", systemImage: "arrow.triangle.branch",
                                    description: Text(workspace.root == nil ? "Open a folder to see its changes."
                                                                           : "This folder isn't in a git repository."))
+                .frame(maxHeight: .infinity)
         }
     }
 

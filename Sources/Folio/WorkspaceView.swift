@@ -441,7 +441,8 @@ private struct NewTabMenu: View {
     @ObservedObject var workspace: Workspace
     @ObservedObject private var bookmarks = BookmarkStore.shared
 
-    static let width: CGFloat = 34
+    /// Includes a little room on the left, so the + doesn't sit against the separator.
+    static let width: CGFloat = 44
 
     var body: some View {
         Menu {
@@ -477,7 +478,8 @@ private struct NewTabMenu: View {
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
-        .frame(width: Self.width)
+        .frame(width: Self.width - 10)
+        .padding(.leading, 10)
         .help("New tab or bookmark")
     }
 }

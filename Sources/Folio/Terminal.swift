@@ -12,7 +12,8 @@ final class TerminalController: NSObject, LocalProcessTerminalViewDelegate {
     var onExit: () -> Void = {}
     private var fontSize: CGFloat = 0
 
-    init(directory: URL?) {
+    /// With `ssh`, the shell runs ssh to that server instead of an interactive prompt.
+    init(directory: URL?, ssh: SSHTarget? = nil) {
         view = LocalProcessTerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         super.init()
         view.processDelegate = self
@@ -29,8 +30,14 @@ final class TerminalController: NSObject, LocalProcessTerminalViewDelegate {
         environment["TERM_PROGRAM"] = "Folio"
         environment["LANG"] = environment["LANG"] ?? "en_US.UTF-8"
         let directory = directory?.path ?? FileManager.default.homeDirectoryForCurrentUser.path
+        // Through your login shell, so ssh sees your PATH (ProxyCommand tools) and agent.
+        // After it disconnects the reason stays on screen until you press Return.
+        var args: [String] = []
+        if let command = ssh?.commandLine {
+            args = ["-c", command + #"; rc=$?; printf '\n[Connection closed (exit %d). Press Return to close this tab.]' "$rc"; read -r _"#]
+        }
         // A leading "-" in argv[0] makes it a login shell, as Terminal and iTerm start it.
-        view.startProcess(executable: shell, args: [], environment: environment.map { "\($0.key)=\($0.value)" },
+        view.startProcess(executable: shell, args: args, environment: environment.map { "\($0.key)=\($0.value)" },
                           execName: "-" + (shell as NSString).lastPathComponent, currentDirectory: directory)
     }
 

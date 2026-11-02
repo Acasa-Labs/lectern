@@ -46,6 +46,8 @@ struct Bookmark: Codable, Identifiable, Hashable {
     var path: String
     var isTerminal: Bool
     var color: TabColor?
+    /// Set for an SSH bookmark.
+    var ssh: SSHTarget?
 
     var url: URL { URL(fileURLWithPath: path) }
 }
@@ -71,7 +73,8 @@ final class BookmarkStore: ObservableObject {
         if let existing = bookmark(for: tab) {
             remove(existing)
         } else if let target = Self.target(of: tab) {
-            bookmarks.append(Bookmark(title: tab.title, path: target.path, isTerminal: target.isTerminal, color: tab.color))
+            bookmarks.append(Bookmark(title: tab.title, path: target.path, isTerminal: target.isTerminal, color: tab.color,
+                                      ssh: tab.sshTarget))
             save()
         }
     }
@@ -83,6 +86,7 @@ final class BookmarkStore: ObservableObject {
 
     /// Files and terminals can be bookmarked; Source Control and unsaved tabs can't.
     static func target(of tab: EditorTab) -> (path: String, isTerminal: Bool)? {
+        if let ssh = tab.sshTarget { return (ssh.key, true) }
         if tab.isTerminal, let folder = tab.terminalDirectory { return (folder.path, true) }
         if tab.isFileTab, let url = tab.url { return (url.path, false) }
         return nil
@@ -111,7 +115,8 @@ final class BookmarksMenu: NSObject, NSMenuDelegate {
             item.target = self
             item.representedObject = bookmark
             item.toolTip = bookmark.path
-            item.image = NSImage(systemSymbolName: bookmark.isTerminal ? "terminal" : "doc.text", accessibilityDescription: nil)
+            item.image = NSImage(systemSymbolName: bookmark.ssh != nil ? "network" : bookmark.isTerminal ? "terminal" : "doc.text",
+                                 accessibilityDescription: nil)
             menu.addItem(item)
         }
     }

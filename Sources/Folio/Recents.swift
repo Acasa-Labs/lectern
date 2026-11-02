@@ -44,6 +44,7 @@ struct WindowSession: Codable {
     struct Entry: Codable {
         var path: String?
         var terminal: String?
+        var ssh: SSHTarget?
         var pinned: Bool?
         var color: TabColor?
         var title: String?
@@ -64,7 +65,9 @@ struct WindowSession: Codable {
         var entries: [Entry] = []
         for tab in workspace.tabs {
             let entry: Entry
-            if tab.isTerminal, let folder = tab.terminalDirectory {
+            if let ssh = tab.sshTarget {
+                entry = Entry(ssh: ssh)
+            } else if tab.isTerminal, let folder = tab.terminalDirectory {
                 entry = Entry(terminal: folder.path)
             } else if tab.isFileTab, let url = tab.url {
                 entry = Entry(path: url.path)
@@ -72,7 +75,7 @@ struct WindowSession: Codable {
                 continue
             }
             if tab.id == workspace.selectedTabID { selectedIndex = entries.count }
-            entries.append(Entry(path: entry.path, terminal: entry.terminal, pinned: tab.isPinned,
+            entries.append(Entry(path: entry.path, terminal: entry.terminal, ssh: entry.ssh, pinned: tab.isPinned,
                                  color: tab.color, title: tab.customTitle))
         }
         self.entries = entries

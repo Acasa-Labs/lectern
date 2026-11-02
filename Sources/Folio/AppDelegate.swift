@@ -100,6 +100,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         BookmarkStore.shared.toggle(tab)
     }
 
+    @objc func connectToServer(_ sender: Any?) {
+        guard let target = SavedServers.promptForServer() else { return }
+        (workspace ?? WorkspaceWindowController.newWindow().workspace).openSSHTab(target)
+    }
+
     @objc func newTerminalTab(_ sender: Any?) {
         (workspace ?? WorkspaceWindowController.newWindow().workspace).openTerminalTab()
     }
@@ -294,6 +299,7 @@ enum MainMenu {
                 item("Toggle Sidebar", #selector(AppDelegate.toggleFileSidebar(_:)), "b"),
                 item("Source Control", #selector(AppDelegate.showSourceControl(_:)), "g", [.command, .option]),
                 item("New Terminal Tab", #selector(AppDelegate.newTerminalTab(_:)), "`", .control),
+                item("Connect to Server…", #selector(AppDelegate.connectToServer(_:)), "k", [.command, .shift]),
                 item("Open in Terminal", #selector(AppDelegate.openInTerminal(_:)), "`", [.control, .shift]),
                 terminalApps,
                 item("Show Preview", #selector(AppDelegate.toggleEditing(_:)), "e"),
@@ -367,6 +373,12 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
 
     /// Opens a bookmark in the front window, or a new one.
     static func open(_ bookmark: Bookmark) {
+        if bookmark.ssh != nil {
+            let controller = current ?? newWindow()
+            controller.workspace.open(bookmark)
+            controller.showWindow(nil)
+            return
+        }
         guard FileManager.default.fileExists(atPath: bookmark.path) else {
             let alert = NSAlert()
             alert.messageText = "“\(bookmark.title)” can't be found"
@@ -432,13 +444,16 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
         // Older sessions only listed file paths.
         let entries = session.entries ?? session.tabs.map { WindowSession.Entry(path: $0) }
         let available = entries.filter { entry in
-            [entry.path, entry.terminal].compactMap { $0 }.contains { fileManager.fileExists(atPath: $0) }
+            entry.ssh != nil || [entry.path, entry.terminal].compactMap { $0 }.contains { fileManager.fileExists(atPath: $0) }
         }
         guard root != nil || !available.isEmpty else { return }
         let workspace = newWindow(root: root).workspace
         var restored: [EditorTab?] = []
         for entry in entries {
-            if let path = entry.path, fileManager.fileExists(atPath: path) {
+            if let ssh = entry.ssh {
+                // Reconnects only when the tab is first shown.
+                workspace.openSSHTab(ssh)
+            } else if let path = entry.path, fileManager.fileExists(atPath: path) {
                 workspace.open(URL(fileURLWithPath: path))
             } else if let folder = entry.terminal, fileManager.fileExists(atPath: folder) {
                 // A fresh shell in the same folder; it starts when the tab is first shown.

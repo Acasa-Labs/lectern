@@ -78,6 +78,8 @@ final class EditorTab: ObservableObject, Identifiable {
     /// Source Control and Terminal tabs aren't files: no path bar, preview or saving.
     var isFileTab: Bool { !isSourceControl && !isTerminal }
     @Published private(set) var terminalTitle = "Terminal"
+    /// Set for an SSH tab: a terminal connected to this server.
+    var sshTarget: SSHTarget?
     /// Set from the tab's right-click menu.
     @Published var color: TabColor?
     @Published var isPinned = false
@@ -117,7 +119,7 @@ final class EditorTab: ObservableObject, Identifiable {
     var terminal: TerminalController {
         if let terminalController { return terminalController }
         let controller = MainActor.assumeIsolated {
-            let controller = TerminalController(directory: terminalDirectory)
+            let controller = TerminalController(directory: terminalDirectory, ssh: sshTarget)
             controller.onTitleChange = { [weak self] title in
                 self?.terminalTitle = title.isEmpty ? "Terminal" : title
             }
@@ -338,7 +340,9 @@ final class Workspace: ObservableObject {
 
     /// Opens a bookmark here: its file as a tab, or a new terminal in its folder. Its name and colour come too.
     func open(_ bookmark: Bookmark) {
-        if bookmark.isTerminal {
+        if let ssh = bookmark.ssh {
+            openSSHTab(ssh)
+        } else if bookmark.isTerminal {
             openTerminalTab(in: bookmark.url)
         } else {
             open(bookmark.url)
@@ -386,6 +390,14 @@ final class Workspace: ObservableObject {
         }
         tabs.append(tab)
         selectedTabID = tab.id
+    }
+
+    /// Opens an SSH tab to a server. It connects when the tab is first shown.
+    func openSSHTab(_ target: SSHTarget) {
+        openTerminalTab(in: FileManager.default.homeDirectoryForCurrentUser)
+        guard let tab = selectedTab else { return }
+        tab.sshTarget = target
+        tab.customTitle = target.title
     }
 
     /// Opens the folder in your own terminal app (iTerm or Terminal), outside Folio.

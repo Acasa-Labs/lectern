@@ -14,6 +14,7 @@
 	<key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
 	<key>NSHighResolutionCapable</key><true/>
 	<key>NSPrincipalClass</key><string>NSApplication</string>
+	<key>NSLocalNetworkUsageDescription</key><string>Folio's terminal and SSH tabs connect to devices and servers on your local network.</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

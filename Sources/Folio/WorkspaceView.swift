@@ -58,10 +58,19 @@ struct WorkspaceView: View {
                     .help("Go forward (⌃⌘→)")
             }
             ToolbarItemGroup(placement: .primaryAction) {
-                Button { workspace.openTerminalTab() } label: {
+                // Click for a terminal in this folder; the arrow lists SSH servers.
+                Menu {
+                    SSHMenuItems(workspace: workspace)
+                    if let terminal = ExternalTerminal.preferred {
+                        Divider()
+                        Button("Open in \(terminal.name)") { workspace.openInTerminal() }
+                    }
+                } label: {
                     Label("Terminal", systemImage: "terminal")
+                } primaryAction: {
+                    workspace.openTerminalTab()
                 }
-                .help("New Terminal tab in this folder (⌃`)")
+                .help("New Terminal tab in this folder (⌃`); the arrow lists SSH servers")
                 if let tab = workspace.selectedTab, tab.isFileTab, tab.kind.hasPreview, !tab.isBinary {
                     EditToggle(tab: tab)
                 }
@@ -437,9 +446,60 @@ private struct TabBar: View {
 }
 
 /// The + after the last tab: a new file or terminal, or one of your bookmarks.
+/// SSH menu items: hosts from ~/.ssh/config, servers saved with Connect to Server…, and managing them.
+private struct SSHMenuItems: View {
+    @ObservedObject var workspace: Workspace
+    @ObservedObject private var servers = SavedServers.shared
+    @ObservedObject private var choices = SSHHostChoices.shared
+
+    private static func address(_ host: SSHConfig.Host) -> String {
+        host.hostName.map { "\(host.user.map { $0 + "@" } ?? "")\($0)" } ?? host.alias
+    }
+
+    var body: some View {
+        let configHosts = SSHConfig.hosts()
+        ForEach(configHosts.filter(choices.isShown), id: \.self) { host in
+            Button { workspace.openSSHTab(SSHTarget(destination: host.alias)) } label: {
+                Label(host.alias, systemImage: "network")
+            }
+            .help(([Self.address(host)]
+                   + (host.otherNames.isEmpty ? [] : ["also: " + host.otherNames.joined(separator: ", ")])).joined(separator: " · "))
+        }
+        ForEach(servers.servers, id: \.key) { server in
+            Button { workspace.openSSHTab(server) } label: {
+                Label(server.title, systemImage: "network")
+            }
+            .help(server.key)
+        }
+        Button("Connect to Server…") {
+            if let target = SavedServers.promptForServer() { workspace.openSSHTab(target) }
+        }
+        if !configHosts.isEmpty {
+            // Untick hosts that aren't servers you log into, e.g. ones only used for git or a deploy tool.
+            Menu("Choose Hosts") {
+                ForEach(configHosts, id: \.self) { host in
+                    Toggle(host.alias, isOn: Binding(get: { choices.isShown(host) },
+                                                     set: { choices.setShown(host, $0) }))
+                }
+            }
+        }
+        if !servers.servers.isEmpty {
+            Menu("Remove Saved Server") {
+                ForEach(servers.servers, id: \.key) { server in
+                    Button(server.title) { servers.remove(server) }
+                }
+            }
+        }
+    }
+}
+
 private struct NewTabMenu: View {
     @ObservedObject var workspace: Workspace
     @ObservedObject private var bookmarks = BookmarkStore.shared
+
+    private var sshSection: some View {
+        Section("SSH") { SSHMenuItems(workspace: workspace) }
+    }
 
     /// Includes a little room on the left, so the + doesn't sit against the separator.
     static let width: CGFloat = 44
@@ -449,6 +509,8 @@ private struct NewTabMenu: View {
             Button("New File") { workspace.newFile() }
             Button("New Terminal") { workspace.openTerminalTab() }
             Button("Quick Open…") { workspace.showQuickOpen = true }
+            Divider()
+            sshSection
             Divider()
             if bookmarks.bookmarks.isEmpty {
                 Text("No Bookmarks — right-click a tab to add one")
@@ -464,7 +526,7 @@ private struct NewTabMenu: View {
                                 if let color = bookmark.color {
                                     Image(nsImage: color.swatch(selected: false))
                                 } else {
-                                    Image(systemName: bookmark.isTerminal ? "terminal" : "doc.text")
+                                    Image(systemName: bookmark.ssh != nil ? "network" : bookmark.isTerminal ? "terminal" : "doc.text")
                                 }
                             }
                         }
@@ -501,7 +563,8 @@ private struct TabButton: View {
                 if tab.isSourceControl {
                     Image(systemName: "arrow.triangle.branch").foregroundStyle(tab.color?.color ?? .secondary)
                 } else if tab.isTerminal {
-                    Image(systemName: "terminal").foregroundStyle(tab.color?.color ?? .secondary)
+                    Image(systemName: tab.sshTarget != nil ? "network" : "terminal")
+                        .foregroundStyle(tab.color?.color ?? .secondary)
                 } else {
                     FileIcon(url: tab.url)
                 }
@@ -535,7 +598,7 @@ private struct TabButton: View {
         .contentShape(Rectangle())
         .onTapGesture { workspace.selectedTabID = tab.id }
         .onHover { hovering = $0 }
-        .help(tab.url?.path ?? tab.terminalDirectory?.path ?? tab.title)
+        .help(tab.sshTarget?.key ?? tab.url?.path ?? tab.terminalDirectory?.path ?? tab.title)
         .contextMenu { menu }
     }
 
@@ -837,14 +900,15 @@ private struct WelcomeView: View {
                         HStack(spacing: 8) {
                             Group {
                                 if bookmark.isTerminal {
-                                    Image(systemName: "terminal").foregroundStyle(bookmark.color?.color ?? .secondary)
+                                    Image(systemName: bookmark.ssh != nil ? "network" : "terminal")
+                                        .foregroundStyle(bookmark.color?.color ?? .secondary)
                                 } else {
                                     FileIcon(url: bookmark.url)
                                 }
                             }
                             .frame(width: 16)
                             Text(bookmark.title).lineLimit(1)
-                            Text((bookmark.isTerminal ? bookmark.url : bookmark.url.deletingLastPathComponent()).path
+                            Text(bookmark.ssh?.key ?? (bookmark.isTerminal ? bookmark.url : bookmark.url.deletingLastPathComponent()).path
                                 .replacingOccurrences(of: NSHomeDirectory(), with: "~"))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)

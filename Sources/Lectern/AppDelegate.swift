@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Updates.start()
         // Files opened from Finder arrive around launch. If none did, pick up the last session,
         // or show the welcome window with recent items.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -113,6 +114,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if let workspace { workspace.openInTerminal() } else { ExternalTerminal.open(FileManager.default.homeDirectoryForCurrentUser) }
     }
 
+    @objc func checkForUpdates(_ sender: Any?) {
+        Updates.checkNow()
+    }
+
+    @objc func toggleAutomaticUpdates(_ sender: Any?) {
+        Updates.checksAutomatically.toggle()
+    }
+
     @objc func chooseTerminal(_ sender: NSMenuItem) {
         guard let bundleID = sender.representedObject as? String else { return }
         ExternalTerminal.choose(bundleID)
@@ -189,6 +198,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return true
         case #selector(showSourceControl(_:)):
             return workspace?.git?.isRepository == true
+        case #selector(checkForUpdates(_:)):
+            return Updates.canCheck
+        case #selector(toggleAutomaticUpdates(_:)):
+            item.state = Updates.checksAutomatically ? .on : .off
+            return Updates.isAvailable
         case #selector(quickOpen(_:)), #selector(toggleFileSidebar(_:)):
             return workspace != nil
         default:
@@ -261,6 +275,8 @@ enum MainMenu {
         [
             menu("Lectern", [
                 item("About Lectern", #selector(NSApplication.orderFrontStandardAboutPanel(_:)), toApp: false),
+                item("Check for Updates…", #selector(AppDelegate.checkForUpdates(_:))),
+                item("Check for Updates Automatically", #selector(AppDelegate.toggleAutomaticUpdates(_:))),
                 .separator(),
                 servicesItem,
                 .separator(),

@@ -14,6 +14,8 @@
 	<key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
 	<key>NSHighResolutionCapable</key><true/>
 	<key>NSPrincipalClass</key><string>NSApplication</string>
+	<key>SUFeedURL</key><string>https://github.com/Acasa-Labs/lectern/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key><string>9qWxMPOkPoAZVvIOHlioo6zZfLCiOF6pyiO2oANTEFs=</string>
 	<key>NSHumanReadableCopyright</key><string>© 2026 Acasa Labs. MIT License.</string>
 	<key>NSAppleEventsUsageDescription</key><string>A command in a Lectern terminal tab wants to control another app.</string>
 	<key>NSMicrophoneUsageDescription</key><string>A command in a Lectern terminal tab wants to use the microphone.</string>

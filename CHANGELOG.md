@@ -1,6 +1,10 @@
 # Changelog
 
-## 1.0.0 (unreleased)
+## Unreleased
+
+- Software updates through Sparkle: Lectern asks on its second launch whether to check automatically, and the Lectern menu has Check for Updates. Updates must be signed with Lectern's EdDSA key.
+
+## 1.0.0 (2026-11-03)
 
 The first public release.
 

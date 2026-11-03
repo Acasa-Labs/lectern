@@ -38,11 +38,14 @@ jobs:
           NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
           NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
           NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+          SPARKLE_ED_KEY: ${{ secrets.SPARKLE_ED_KEY }}
         run: |
           export NOTARY_KEY="$RUNNER_TEMP/notary.p8"
+          export SPARKLE_KEY_FILE="$RUNNER_TEMP/sparkle.key"
           echo "$NOTARY_KEY_P8" > "$NOTARY_KEY"
+          echo "$SPARKLE_ED_KEY" > "$SPARKLE_KEY_FILE"
           scripts/release.sh "${GITHUB_REF_NAME#v}"
-          rm "$NOTARY_KEY"
+          rm "$NOTARY_KEY" "$SPARKLE_KEY_FILE"
 
       - name: Publish a draft release
         env:
@@ -50,7 +53,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           gh release create "$GITHUB_REF_NAME" --draft --title "Lectern $VERSION" --generate-notes \
-            "dist/Lectern-$VERSION.dmg" "dist/Lectern-$VERSION.dmg.sha256"
+            "dist/Lectern-$VERSION.dmg" "dist/Lectern-$VERSION.dmg.sha256" dist/appcast.xml
 
       - name: Remove the signing keychain
         if: always()

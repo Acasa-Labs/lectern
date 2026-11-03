@@ -20,6 +20,8 @@ Lectern is written in Swift with AppKit and SwiftUI. It has no Electron, no web 
 
 Download the latest `Lectern.dmg` from [Releases](../../releases), open it, and drag Lectern to Applications. Builds are signed with a Developer ID and notarized by Apple.
 
+Lectern can keep itself up to date. On its second launch it asks whether to check for updates automatically; you can change your answer, or check now, from the Lectern menu.
+
 Lectern needs **macOS 15 Sequoia or later** and runs on Apple silicon and Intel Macs.
 
 To make Lectern the default app for a file type, open a file's **Get Info** window in Finder (⌘I), choose Lectern under **Open with**, then click **Change All…**.
@@ -45,7 +47,7 @@ To make Lectern the default app for a file type, open a file's **Get Info** wind
 
 ## Privacy
 
-Lectern makes no network requests of its own: no telemetry, no update checks, no accounts. The network is used only by commands you run (`git fetch`/`pull`/`push`, `ssh`, and whatever you type in a terminal tab) and by images that a Markdown file links to on the web. Markdown previews don't run the page's own JavaScript. Clicked web and mail links open in your browser or mail app.
+Lectern makes no network requests of its own, apart from update checks: no telemetry and no accounts. Update checks happen only if you turn them on (Lectern asks once) or choose Check for Updates. Each check downloads one file, the update feed from this repository's GitHub releases, and sends nothing about you or your files. The network is used only by commands you run (`git fetch`/`pull`/`push`, `ssh`, and whatever you type in a terminal tab) and by images that a Markdown file links to on the web. Markdown previews don't run the page's own JavaScript. Clicked web and mail links open in your browser or mail app.
 
 ## Build from source
 

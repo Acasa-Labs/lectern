@@ -16,6 +16,9 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp Resources/* "$APP/Contents/Resources/"
 cp LICENSE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
 cp "$BINARY" "$APP/Contents/MacOS/Lectern"
+# Sparkle (software updates) is built next to the binary; ditto keeps the framework's symlinks.
+mkdir -p "$APP/Contents/Frameworks"
+ditto "$(dirname "$BINARY")/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 cp Info.plist "$APP/Contents/"
 if [ -n "$VERSION" ]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
